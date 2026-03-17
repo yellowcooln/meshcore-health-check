@@ -8,6 +8,7 @@ observer.json.tmp
 observers.json.tmp
 session-results.json
 session-results.json.tmp
+public/logo.png
 
 npm-debug.log*
 yarn-debug.log*
