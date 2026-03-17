@@ -13,5 +13,6 @@ services:
       PORT: "3090"
     volumes:
       - ./observer.json:/app/observer.json
+      - ./session-results.json:/app/session-results.json
     ports:
       - "3090:3090"

@@ -6,6 +6,8 @@ observer.json
 observers.json
 observer.json.tmp
 observers.json.tmp
+session-results.json
+session-results.json.tmp
 
 npm-debug.log*
 yarn-debug.log*

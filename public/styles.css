@@ -183,9 +183,19 @@ body {
   align-items: stretch;
 }
 
+.session-code-actions {
+  display: grid;
+  gap: 10px;
+  align-content: start;
+}
+
 .copy-button {
   margin-top: 18px;
   min-width: 88px;
+}
+
+.session-share-note {
+  margin: 0 0 12px;
 }
 
 .session-instructions,
@@ -640,6 +650,14 @@ body {
   text-decoration: underline;
 }
 
+body[data-page-mode="share"] .share-hidden {
+  display: none !important;
+}
+
+body[data-page-mode="share"] .share-hero-card {
+  min-height: 0;
+}
+
 .history-list {
   margin-top: 18px;
 }
@@ -705,6 +723,10 @@ body {
   .session-meta,
   .session-code-row {
     grid-template-columns: 1fr;
+  }
+
+  .session-code-actions {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .score-ring {

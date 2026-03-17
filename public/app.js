@@ -3,6 +3,7 @@ const SESSION_HISTORY_STORAGE_KEY = 'mesh-health-check-session-history';
 const OBSERVER_ALLOWLIST_STORAGE_KEY = 'mesh-health-check-observer-allowlist';
 const MAP_THEME_STORAGE_KEY = 'mesh-health-check-map-theme';
 const ANALYZER_BASE_URL = 'https://analyzer.letsmesh.net/packets?packet_hash=';
+const SHARE_ROUTE_PREFIX = '/share/';
 let deferredInstallPrompt = null;
 
 const ui = {
@@ -10,8 +11,10 @@ const ui = {
   installAppButton: document.querySelector('#install-app-button'),
   newSessionButton: document.querySelector('#new-session-button'),
   copySessionCodeButton: document.querySelector('#copy-session-code'),
+  shareSessionButton: document.querySelector('#share-session'),
   sessionCode: document.querySelector('#session-code'),
   sessionInstructions: document.querySelector('#session-instructions'),
+  sessionShareNote: document.querySelector('#session-share-note'),
   sessionStatus: document.querySelector('#session-status'),
   sessionHash: document.querySelector('#session-hash'),
   healthLabel: document.querySelector('#health-label'),
@@ -49,12 +52,16 @@ const ui = {
   sessionHistory: document.querySelector('#session-history'),
 };
 
+const pageMode = document.body?.dataset?.pageMode || 'app';
+
 localStorage.removeItem(SESSION_STORAGE_KEY);
 localStorage.removeItem(SESSION_HISTORY_STORAGE_KEY);
 
 const state = {
   snapshot: null,
   currentSessionId: sessionStorage.getItem(SESSION_STORAGE_KEY) || '',
+  sharedSessionId: sharedSessionIdFromLocation(),
+  sharedSessionMissing: false,
   trackedSessionIds: loadTrackedSessionIds(),
   selectedObserverKeys: loadSelectedObserverKeys(),
   mapTheme: loadMapTheme(),
@@ -118,6 +125,31 @@ function loadMapTheme() {
 
 function saveMapTheme() {
   localStorage.setItem(MAP_THEME_STORAGE_KEY, state.mapTheme);
+}
+
+function dedupe(items) {
+  return [...new Set(items.filter(Boolean))];
+}
+
+function sharedSessionIdFromLocation() {
+  const path = window.location.pathname || '';
+  if (!path.startsWith(SHARE_ROUTE_PREFIX)) {
+    return '';
+  }
+  const encodedId = path.slice(SHARE_ROUTE_PREFIX.length).split('/')[0] || '';
+  try {
+    return decodeURIComponent(encodedId).trim();
+  } catch {
+    return encodedId.trim();
+  }
+}
+
+function isSharedRoute() {
+  return Boolean(state.sharedSessionId);
+}
+
+function isSharePage() {
+  return pageMode === 'share';
 }
 
 function updateInstallButton() {
@@ -225,6 +257,19 @@ function formatTime(timestamp) {
   });
 }
 
+function formatDateTime(timestamp) {
+  if (!timestamp) {
+    return 'Pending';
+  }
+  return new Date(timestamp).toLocaleString([], {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+  });
+}
+
 function formatElapsed(ms) {
   const value = Math.max(0, Math.round(ms));
   if (value < 1000) {
@@ -240,6 +285,18 @@ function formatElapsed(ms) {
     return `${minutes + 1} min`;
   }
   return `${minutes} min ${seconds}s`;
+}
+
+function retentionNote() {
+  const seconds = Number(state.snapshot?.results?.retentionSeconds || 0);
+  if (!seconds) {
+    return 'Shared links stay available for a limited time.';
+  }
+  const days = seconds / 86400;
+  if (Number.isInteger(days) && days >= 1) {
+    return `Shared links are kept for ${days} day${days === 1 ? '' : 's'}.`;
+  }
+  return `Shared links are kept for ${formatElapsed(seconds * 1000)}.`;
 }
 
 function setSessionHash(hash) {
@@ -331,6 +388,34 @@ async function copyCurrentCode() {
   }, 1200);
 }
 
+async function copySessionShareLink() {
+  const session = currentSession();
+  const shareUrl = String(session?.shareUrl || '').trim();
+  if (!shareUrl) {
+    return;
+  }
+
+  try {
+    await navigator.clipboard.writeText(shareUrl);
+  } catch {
+    const helper = document.createElement('textarea');
+    helper.value = shareUrl;
+    helper.setAttribute('readonly', '');
+    helper.style.position = 'absolute';
+    helper.style.left = '-9999px';
+    document.body.appendChild(helper);
+    helper.select();
+    document.execCommand('copy');
+    helper.remove();
+  }
+
+  const originalText = ui.shareSessionButton.textContent;
+  ui.shareSessionButton.textContent = 'Link Copied';
+  window.setTimeout(() => {
+    ui.shareSessionButton.textContent = originalText;
+  }, 1200);
+}
+
 async function createSession() {
   ui.newSessionButton.disabled = true;
   try {
@@ -349,8 +434,13 @@ async function createSession() {
     if (!response.ok) {
       throw new Error(session.error || 'Failed to create session');
     }
+    state.sharedSessionId = '';
+    state.sharedSessionMissing = false;
     state.currentSessionId = session.id;
     sessionStorage.setItem(SESSION_STORAGE_KEY, session.id);
+    if (window.location.pathname !== '/app') {
+      window.history.replaceState({}, '', '/app');
+    }
     upsertTrackedSession(session);
     render();
   } catch (error) {
@@ -361,10 +451,11 @@ async function createSession() {
 }
 
 function currentSession() {
-  if (!state.currentSessionId) {
+  const sessionId = state.sharedSessionId || state.currentSessionId;
+  if (!sessionId) {
     return null;
   }
-  return state.sessions.get(state.currentSessionId) || null;
+  return state.sessions.get(sessionId) || null;
 }
 
 function renderExpectedObservers(session) {
@@ -448,7 +539,7 @@ function applySiteBranding(snapshot) {
   const [prefix, ...suffixParts] = description.split('configured channel');
   const suffix = suffixParts.join('configured channel');
 
-  document.title = title;
+  document.title = isSharePage() ? `${title} Shared Result` : title;
   ui.repoNoteLink.href = repoUrl;
   if (externalUrl) {
     ui.externalLink.href = externalUrl;
@@ -458,6 +549,13 @@ function applySiteBranding(snapshot) {
     ui.externalLink.href = '#';
     ui.externalLink.textContent = 'External Link';
     ui.externalLink.classList.add('hidden');
+  }
+  if (isSharePage()) {
+    ui.heroEyebrow.textContent = 'Shared Result';
+    ui.heroTitle.textContent = 'Observer coverage someone shared with you.';
+    ui.heroDescriptionPrefix.textContent = 'This page is read-only. Review the result from';
+    ui.heroDescriptionSuffix.textContent = 'or open the full dashboard to run your own check.';
+    return;
   }
   ui.heroEyebrow.textContent = eyebrow;
   ui.heroTitle.textContent = headline;
@@ -702,16 +800,27 @@ function render() {
   const session = currentSession();
   ui.newSessionButton.disabled = false;
   ui.copySessionCodeButton.disabled = !session;
+  ui.shareSessionButton.disabled = !session?.shareUrl;
   applySiteBranding(snapshot);
-  ui.mqttPill.textContent = snapshot.mqtt.connected ? 'MQTT online' : 'MQTT offline';
-  ui.mqttPill.classList.toggle('online', snapshot.mqtt.connected);
+  if (isSharePage()) {
+    ui.mqttPill.textContent = state.sharedSessionMissing ? 'Shared link expired' : 'Shared Result';
+    ui.mqttPill.classList.remove('online');
+  } else {
+    ui.mqttPill.textContent = snapshot.mqtt.connected ? 'MQTT online' : 'MQTT offline';
+    ui.mqttPill.classList.toggle('online', snapshot.mqtt.connected);
+  }
   ui.heroChannel.textContent = channelLabel;
   ui.brokerName.textContent = snapshot.mqtt.broker;
   ui.activeObserverNote.textContent =
     `${snapshot.observerStats.activeCount} active observer${snapshot.observerStats.activeCount === 1 ? '' : 's'} in the last ${snapshot.observerStats.windowSeconds}s`;
   if (!session) {
     ui.sessionCode.textContent = 'No active code';
-    ui.sessionInstructions.textContent = 'Create a session to start listening.';
+    ui.sessionInstructions.textContent = state.sharedSessionMissing
+      ? 'That shared result is no longer available.'
+      : 'Create a session to start listening.';
+    ui.sessionShareNote.textContent = state.sharedSessionMissing
+      ? 'Shared results are removed after their retention window.'
+      : retentionNote();
     ui.sessionStatus.textContent = 'Idle';
     setSessionHash('');
     ui.healthLabel.textContent = 'Waiting';
@@ -732,11 +841,14 @@ function render() {
     return;
   }
 
-  state.currentSessionId = session.id;
-  sessionStorage.setItem(SESSION_STORAGE_KEY, session.id);
+  if (!state.sharedSessionId) {
+    state.currentSessionId = session.id;
+    sessionStorage.setItem(SESSION_STORAGE_KEY, session.id);
+  }
 
   ui.sessionCode.textContent = session.code;
   ui.sessionInstructions.textContent = session.instructions;
+  ui.sessionShareNote.textContent = `Share link available until ${formatDateTime(session.resultExpiresAt)}.`;
   ui.sessionStatus.textContent = session.status.toUpperCase();
   setSessionHash(session.messageHash);
   ui.healthLabel.textContent = session.healthLabel;
@@ -763,7 +875,10 @@ function applySnapshot(snapshot) {
 }
 
 async function refreshTrackedSessions() {
-  const ids = [...state.trackedSessionIds];
+  const ids = dedupe([
+    ...state.trackedSessionIds,
+    state.sharedSessionId,
+  ]);
   if (ids.length === 0) {
     return;
   }
@@ -791,11 +906,18 @@ async function refreshTrackedSessions() {
       return;
     }
     if (result.missing) {
+      if (result.sessionId === state.sharedSessionId) {
+        state.sharedSessionMissing = true;
+        state.sessions.delete(result.sessionId);
+      }
       removeTrackedSession(result.sessionId);
       continue;
     }
     if (result.failed || !result.session) {
       continue;
+    }
+    if (result.sessionId === state.sharedSessionId) {
+      state.sharedSessionMissing = false;
     }
     state.sessions.set(result.session.id, result.session);
   }
@@ -809,7 +931,7 @@ async function refreshFromServer() {
   try {
     const response = await apiFetch('/api/bootstrap');
     const snapshot = await response.json();
-    if (snapshot.turnstile?.enabled && !snapshot.turnstile.verified) {
+    if (snapshot.turnstile?.enabled && !snapshot.turnstile.verified && !isSharedRoute()) {
       redirectToLanding();
       return;
     }
@@ -866,7 +988,9 @@ async function bootstrap() {
   if (!state.snapshot) {
     return;
   }
-  if (!currentSession()) {
+  if (isSharedRoute()) {
+    render();
+  } else if (!currentSession()) {
     await createSession();
   } else {
     render();
@@ -884,6 +1008,10 @@ ui.installAppButton.addEventListener('click', () => {
 
 ui.copySessionCodeButton.addEventListener('click', () => {
   copyCurrentCode();
+});
+
+ui.shareSessionButton.addEventListener('click', () => {
+  copySessionShareLink();
 });
 
 ui.observerAllowlistClear.addEventListener('click', () => {

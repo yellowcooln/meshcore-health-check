@@ -16,6 +16,8 @@
   repo, including the optional `DASH_BROKER_HOST` UI-only broker label.
 - `observer.json`: persistent observer public-key profile map with `name`,
   `lat`, and `lon`, mounted into the container and updated by the server.
+- `session-results.json`: retained session result store used for shareable
+  `/share/:sessionId` links.
 - `README.md`: architecture and flow overview.
 - `HOWTO.md`: deployment and operator guide.
 - `CHANGES.md`: versioned project change log.
@@ -58,6 +60,8 @@ but `npm test` and `npm run check` are valid for local CI-style verification.
   arrives
 - confirm observer coordinates resolve from `observer.json` or MQTT metadata if
   map behavior changes
+- confirm retained session results are written to `session-results.json` if
+  share behavior changes
 - confirm `GET /manifest.webmanifest` returns valid app metadata if PWA support changes
 - confirm session creation still works, including default and custom observer
   sets
@@ -87,5 +91,7 @@ but `npm test` and `npm run check` are valid for local CI-style verification.
 - Keep `KNOWN_OBSERVERS` values as full pubkeys, not display names.
 - Keep `DASH_BROKER_HOST` aligned with the public-facing broker label you want
   users to see; it does not affect the actual MQTT connection.
+- Keep `RESULTS_FILE` writable and mounted if you expect shared result links to
+  survive container restarts.
 - The repo footer link is fixed to the project repository; only the optional
   external hero link should be env-configurable.
