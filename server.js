@@ -259,6 +259,7 @@ const LOG_LEVEL = normalizeLogLevel(envValue('LOG_LEVEL', 'info'));
 const logger = createLogger(LOG_LEVEL);
 const DISABLE_RUNTIME = envBool('MESH_HEALTH_DISABLE_RUNTIME', false);
 const DISABLE_OBSERVER_FILE_WRITES = DISABLE_RUNTIME || envBool('DISABLE_OBSERVER_FILE_WRITES', false);
+const DISABLE_RESULTS_FILE_WRITES = envBool('DISABLE_RESULTS_FILE_WRITES', false);
 const PORT = envNumber('PORT', 3090);
 const MQTT_URL = buildMqttUrl();
 const MQTT_TOPICS = dedupe(envList('MQTT_TOPIC').length > 0
@@ -266,6 +267,8 @@ const MQTT_TOPICS = dedupe(envList('MQTT_TOPIC').length > 0
   : ['meshcore/BOS/#']);
 const OBSERVERS_FILE = envValue('OBSERVERS_FILE', 'observer.json');
 const OBSERVERS_FILE_PATH = resolveAppPath(OBSERVERS_FILE);
+const RESULTS_FILE = envValue('RESULTS_FILE', 'session-results.json');
+const RESULTS_FILE_PATH = resolveAppPath(RESULTS_FILE);
 const APP_TITLE = envValue('APP_TITLE', 'Mesh Health Check');
 const APP_EYEBROW = envValue('APP_EYEBROW', 'MeshCore Observer Coverage');
 const APP_HEADLINE = envValue('APP_HEADLINE', 'Check your mesh reach.');
@@ -331,6 +334,10 @@ const OBSERVER_ACTIVE_WINDOW_MS = Math.max(
   envNumber('OBSERVER_ACTIVE_WINDOW_SECONDS', 900),
 ) * 1000;
 const SESSION_TTL_MS = Math.max(60, envNumber('SESSION_TTL_SECONDS', 600)) * 1000;
+const RESULT_RETENTION_MS = Math.max(
+  SESSION_TTL_MS / 1000,
+  envNumber('RESULT_RETENTION_SECONDS', 604800),
+) * 1000;
 const SESSION_HASH_ALIAS_WINDOW_MS = Math.max(
   5,
   envNumber('SESSION_HASH_ALIAS_WINDOW_SECONDS', 90),
@@ -437,12 +444,197 @@ const meshPacketDecoderKeyStore = envTestChannelSecret
 const observerProfiles = parseObserversJson(OBSERVERS_FILE_PATH);
 const appHtmlTemplate = fs.readFileSync(path.join(APP_DIR, 'public/index.html'), 'utf8');
 const landingHtmlTemplate = fs.readFileSync(path.join(APP_DIR, 'public/landing.html'), 'utf8');
+const shareHtmlTemplate = fs.readFileSync(path.join(APP_DIR, 'public/share.html'), 'utf8');
 const observerState = new Map();
 const sessions = new Map();
 const messageToSession = new Map();
 const rateLimitBuckets = new Map();
 const turnstileAuthTokens = new Map();
 let observerNamesWriteTimer = null;
+let resultsWriteTimer = null;
+
+function writeJsonFileAtomic(filePath, payload) {
+  const body = `${JSON.stringify(payload, null, 2)}\n`;
+  const tempPath = `${filePath}.tmp`;
+  try {
+    fs.writeFileSync(tempPath, body, 'utf8');
+    fs.renameSync(tempPath, filePath);
+  } catch (error) {
+    if (error?.code === 'EBUSY' || error?.code === 'EXDEV') {
+      fs.writeFileSync(filePath, body, 'utf8');
+      try {
+        fs.unlinkSync(tempPath);
+      } catch {
+        // ignore cleanup failure
+      }
+      return;
+    }
+    throw error;
+  }
+}
+
+function sessionRetentionDeadline(session) {
+  const createdAt = Number(session?.createdAt || 0);
+  return createdAt + RESULT_RETENTION_MS;
+}
+
+function isRetainedSession(session, now = Date.now()) {
+  if (!session?.id || !Number.isFinite(Number(session.createdAt))) {
+    return false;
+  }
+  return now < sessionRetentionDeadline(session);
+}
+
+function serializeSessionRecord(session) {
+  return {
+    id: session.id,
+    code: session.code,
+    createdAt: session.createdAt,
+    expiresAt: session.expiresAt,
+    status: session.status,
+    useCount: session.useCount,
+    maxUses: session.maxUses,
+    messageHash: session.messageHash,
+    messageHashes: Array.isArray(session.messageHashes)
+      ? session.messageHashes.map(normalizeMessageHash).filter(Boolean)
+      : [],
+    matchedAt: session.matchedAt,
+    messageBody: session.messageBody,
+    sender: session.sender,
+    channelHash: session.channelHash,
+    channelName: session.channelName,
+    allowlistEnabled: Boolean(session.allowlistEnabled),
+    expectedObserverKeys: Array.isArray(session.expectedObserverKeys)
+      ? session.expectedObserverKeys.map(normalizeKey).filter(Boolean)
+      : [],
+    expectedObserverSource: String(session.expectedObserverSource || ''),
+    receipts: [...(session.receipts?.values() || [])].map((receipt) => ({
+      observerKey: normalizeKey(receipt.observerKey),
+      observerHash: String(receipt.observerHash || '').trim().toUpperCase(),
+      observerLabel: String(receipt.observerLabel || '').trim(),
+      observerName: String(receipt.observerName || '').trim(),
+      firstSeenAt: Number(receipt.firstSeenAt || 0),
+      lastSeenAt: Number(receipt.lastSeenAt || 0),
+      count: Math.max(1, Number(receipt.count || 1)),
+      topic: String(receipt.topic || ''),
+      messageHash: normalizeMessageHash(receipt.messageHash),
+      packetType: receipt.packetType,
+      channelName: String(receipt.channelName || ''),
+      rssi: Number.isFinite(Number(receipt.rssi)) ? Number(receipt.rssi) : null,
+      snr: Number.isFinite(Number(receipt.snr)) ? Number(receipt.snr) : null,
+      duration: Number.isFinite(Number(receipt.duration)) ? Number(receipt.duration) : null,
+      path: Array.isArray(receipt.path)
+        ? receipt.path.map(normalizePathHop).filter(Boolean)
+        : [],
+    })).filter((receipt) => receipt.observerKey),
+  };
+}
+
+function restoreSessionRecord(rawSession) {
+  if (!rawSession || typeof rawSession !== 'object' || Array.isArray(rawSession)) {
+    return null;
+  }
+  const id = String(rawSession.id || '').trim();
+  const code = String(rawSession.code || '').trim().toUpperCase();
+  const createdAt = Number(rawSession.createdAt || 0);
+  if (!id || !code || !Number.isFinite(createdAt) || createdAt <= 0) {
+    return null;
+  }
+  const expectedObserverKeys = Array.isArray(rawSession.expectedObserverKeys)
+    ? rawSession.expectedObserverKeys.map(normalizeKey).filter(Boolean)
+    : [];
+  const receipts = new Map();
+  for (const rawReceipt of Array.isArray(rawSession.receipts) ? rawSession.receipts : []) {
+    const observerKey = normalizeKey(rawReceipt?.observerKey);
+    if (!observerKey) {
+      continue;
+    }
+    ensureObserverRecord(observerKey);
+    receipts.set(observerKey, {
+      observerKey,
+      observerHash: String(rawReceipt?.observerHash || '').trim().toUpperCase(),
+      observerLabel: String(rawReceipt?.observerLabel || '').trim(),
+      observerName: String(rawReceipt?.observerName || '').trim() || null,
+      firstSeenAt: Number(rawReceipt?.firstSeenAt || createdAt),
+      lastSeenAt: Number(rawReceipt?.lastSeenAt || rawReceipt?.firstSeenAt || createdAt),
+      count: Math.max(1, Number(rawReceipt?.count || 1)),
+      topic: String(rawReceipt?.topic || ''),
+      messageHash: normalizeMessageHash(rawReceipt?.messageHash || rawSession.messageHash || ''),
+      packetType: rawReceipt?.packetType ?? null,
+      channelName: String(rawReceipt?.channelName || rawSession.channelName || ''),
+      rssi: Number.isFinite(Number(rawReceipt?.rssi)) ? Number(rawReceipt.rssi) : null,
+      snr: Number.isFinite(Number(rawReceipt?.snr)) ? Number(rawReceipt.snr) : null,
+      duration: Number.isFinite(Number(rawReceipt?.duration)) ? Number(rawReceipt.duration) : null,
+      path: Array.isArray(rawReceipt?.path)
+        ? rawReceipt.path.map(normalizePathHop).filter(Boolean)
+        : [],
+    });
+  }
+  for (const observerKey of expectedObserverKeys) {
+    ensureObserverRecord(observerKey);
+  }
+  return {
+    id,
+    code,
+    createdAt,
+    expiresAt: Number(rawSession.expiresAt || (createdAt + SESSION_TTL_MS)),
+    status: String(rawSession.status || 'waiting'),
+    useCount: Math.max(0, Number(rawSession.useCount || 0)),
+    maxUses: Math.max(1, Number(rawSession.maxUses || MAX_USES_PER_CODE)),
+    messageHash: normalizeMessageHash(rawSession.messageHash || ''),
+    messageHashes: dedupe(
+      (Array.isArray(rawSession.messageHashes) ? rawSession.messageHashes : [])
+        .map(normalizeMessageHash)
+        .filter(Boolean),
+    ),
+    matchedAt: Number(rawSession.matchedAt || 0),
+    messageBody: String(rawSession.messageBody || ''),
+    sender: String(rawSession.sender || ''),
+    channelHash: String(rawSession.channelHash || '').trim().toLowerCase(),
+    channelName: String(rawSession.channelName || ''),
+    allowlistEnabled: Boolean(rawSession.allowlistEnabled),
+    expectedObserverKeys,
+    expectedObserverSource: String(rawSession.expectedObserverSource || ''),
+    receipts,
+  };
+}
+
+function writeResultsFile() {
+  const payload = {
+    version: 1,
+    sessions: [...sessions.values()]
+      .filter((session) => isRetainedSession(session))
+      .sort((left, right) => left.createdAt - right.createdAt)
+      .map(serializeSessionRecord),
+  };
+  writeJsonFileAtomic(RESULTS_FILE_PATH, payload);
+}
+
+function scheduleResultsWrite() {
+  if (DISABLE_RESULTS_FILE_WRITES) {
+    return;
+  }
+  if (resultsWriteTimer) {
+    return;
+  }
+  resultsWriteTimer = setTimeout(() => {
+    resultsWriteTimer = null;
+    writeResultsFile();
+  }, 250);
+}
+
+function flushScheduledWrites() {
+  if (observerNamesWriteTimer) {
+    clearTimeout(observerNamesWriteTimer);
+    observerNamesWriteTimer = null;
+    writeObserverNamesFile();
+  }
+  if (resultsWriteTimer) {
+    clearTimeout(resultsWriteTimer);
+    resultsWriteTimer = null;
+    writeResultsFile();
+  }
+}
 
 function writeObserverNamesFile() {
   const payload = {};
@@ -459,23 +651,7 @@ function writeObserverNamesFile() {
       ...(lon != null ? { lon } : {}),
     };
   }
-  const body = `${JSON.stringify(payload, null, 2)}\n`;
-  const tempPath = `${OBSERVERS_FILE_PATH}.tmp`;
-  try {
-    fs.writeFileSync(tempPath, body, 'utf8');
-    fs.renameSync(tempPath, OBSERVERS_FILE_PATH);
-  } catch (error) {
-    if (error?.code === 'EBUSY' || error?.code === 'EXDEV') {
-      fs.writeFileSync(OBSERVERS_FILE_PATH, body, 'utf8');
-      try {
-        fs.unlinkSync(tempPath);
-      } catch {
-        // ignore cleanup failure
-      }
-      return;
-    }
-    throw error;
-  }
+  writeJsonFileAtomic(OBSERVERS_FILE_PATH, payload);
 }
 
 function scheduleObserverNamesWrite() {
@@ -493,6 +669,10 @@ function scheduleObserverNamesWrite() {
 
 if (!fs.existsSync(OBSERVERS_FILE_PATH)) {
   writeObserverNamesFile();
+}
+
+if (!fs.existsSync(RESULTS_FILE_PATH) && !DISABLE_RESULTS_FILE_WRITES) {
+  writeResultsFile();
 }
 
 function createObserverRecord(observerKey) {
@@ -575,7 +755,7 @@ function normalizedSender(value) {
   return String(value || '').trim().toLowerCase();
 }
 
-function unlinkSessionHashes(session) {
+function unlinkSessionHashes(session, clearHashes = true) {
   if (!session) {
     return;
   }
@@ -585,7 +765,9 @@ function unlinkSessionHashes(session) {
   for (const hash of knownHashes) {
     messageToSession.delete(hash);
   }
-  session.messageHashes = [];
+  if (clearHashes) {
+    session.messageHashes = [];
+  }
 }
 
 function linkSessionHash(session, hash) {
@@ -667,6 +849,42 @@ function primeObserverDirectory() {
 }
 
 primeObserverDirectory();
+
+function loadRetainedSessions() {
+  const parsed = readStructuredFile(RESULTS_FILE_PATH);
+  const rawSessions = Array.isArray(parsed)
+    ? parsed
+    : Array.isArray(parsed?.sessions)
+      ? parsed.sessions
+      : [];
+  const now = Date.now();
+  let dropped = false;
+  for (const rawSession of rawSessions) {
+    const session = restoreSessionRecord(rawSession);
+    if (!session) {
+      dropped = true;
+      continue;
+    }
+    if (!isRetainedSession(session, now)) {
+      dropped = true;
+      continue;
+    }
+    if (session.status !== 'expired' && now >= session.expiresAt) {
+      session.status = 'expired';
+    }
+    sessions.set(session.id, session);
+    for (const hash of session.messageHashes) {
+      if (session.status !== 'expired') {
+        messageToSession.set(hash, session.id);
+      }
+    }
+  }
+  if (dropped) {
+    scheduleResultsWrite();
+  }
+}
+
+loadRetainedSessions();
 
 function parseCookies(cookieHeader) {
   const out = {};
@@ -1197,7 +1415,18 @@ function decodeMeshPacket(rawHex) {
 }
 
 function createCode() {
-  return `MHC-${randomBytes(3).toString('hex').toUpperCase()}`;
+  const existingCodes = new Set(
+    [...sessions.values()]
+      .filter((session) => isRetainedSession(session))
+      .map((session) => session.code),
+  );
+  for (let attempt = 0; attempt < 32; attempt += 1) {
+    const candidate = `MHC-${randomBytes(3).toString('hex').toUpperCase()}`;
+    if (!existingCodes.has(candidate)) {
+      return candidate;
+    }
+  }
+  return `MHC-${randomUUID().replace(/-/g, '').slice(0, 6).toUpperCase()}`;
 }
 
 function activeObserverKeys(now = Date.now()) {
@@ -1273,7 +1502,19 @@ function observerDirectory() {
     .map(serializeObserver);
 }
 
-function serializeSession(session) {
+function sharePathForSession(session) {
+  return `/share/${encodeURIComponent(session.id)}`;
+}
+
+function shareUrlForSession(session, request = null) {
+  const sharePath = sharePathForSession(session);
+  if (!request) {
+    return sharePath;
+  }
+  return `${requestOrigin(request)}${sharePath}`;
+}
+
+function serializeSession(session, request = null) {
   const allReports = [...session.receipts.values()]
     .sort((left, right) => left.firstSeenAt - right.firstSeenAt)
     .map((report) => {
@@ -1311,6 +1552,7 @@ function serializeSession(session) {
     code: session.code,
     createdAt: session.createdAt,
     expiresAt: session.expiresAt,
+    resultExpiresAt: sessionRetentionDeadline(session),
     status: session.status,
     instructions: `Send ${session.code} to #${testChannelName}`,
     useCount: session.useCount,
@@ -1328,6 +1570,8 @@ function serializeSession(session) {
     healthPercent: percent,
     healthLabel: healthLabel(percent),
     expectedObserverSource: session.expectedObserverSource,
+    sharePath: sharePathForSession(session),
+    shareUrl: shareUrlForSession(session, request),
     expectedObservers: expected.map((key) => {
       const observer = observerState.get(key);
       return {
@@ -1371,6 +1615,9 @@ function snapshotPayload() {
       configuredCount: KNOWN_OBSERVERS.length,
       activeCount: activeObservers.length,
       windowSeconds: Math.round(OBSERVER_ACTIVE_WINDOW_MS / 1000),
+    },
+    results: {
+      retentionSeconds: Math.round(RESULT_RETENTION_MS / 1000),
     },
     defaultObserverKeys: defaultTarget.keys,
     defaultObserverSource: defaultTarget.source,
@@ -1610,19 +1857,21 @@ function pruneState() {
   for (const session of sessions.values()) {
     if (session.status !== 'expired' && now >= session.expiresAt) {
       session.status = 'expired';
+      unlinkSessionHashes(session, false);
       changed = true;
     }
   }
 
   for (const [sessionId, session] of [...sessions.entries()]) {
-    const maxAge = session.status === 'matched'
-      ? (SESSION_TTL_MS * 4)
-      : (SESSION_TTL_MS * 2);
-    if (now - session.createdAt > maxAge) {
+    if (!isRetainedSession(session, now)) {
       sessions.delete(sessionId);
       unlinkSessionHashes(session);
       changed = true;
     }
+  }
+
+  if (changed) {
+    scheduleResultsWrite();
   }
 
   return changed;
@@ -1765,6 +2014,7 @@ function handlePacketMessage(topic, observerKey, payloadBuffer) {
     logger.debug(
       `[session] receipt ${session.code} from ${shortKey(packetInfo.observerKey)} (${messageHash || 'no-hash'})`,
     );
+    scheduleResultsWrite();
     broadcastSnapshot(true);
   }
 }
@@ -1900,8 +2150,9 @@ app.post(
     };
     sessions.set(session.id, session);
     logger.info(`[session] created ${session.code}`);
+    scheduleResultsWrite();
     broadcastSnapshot(true);
-    response.status(201).json(serializeSession(session));
+    response.status(201).json(serializeSession(session, request));
   },
 );
 
@@ -1911,7 +2162,7 @@ app.get('/api/sessions/:sessionId', (request, response) => {
     response.status(404).json({ error: 'session_not_found' });
     return;
   }
-  response.json(serializeSession(session));
+  response.json(serializeSession(session, request));
 });
 
 function sendApp(request, response) {
@@ -1920,6 +2171,10 @@ function sendApp(request, response) {
 
 function sendLanding(request, response) {
   response.type('html').send(renderHtmlTemplate(landingHtmlTemplate, request, 'Verification'));
+}
+
+function sendShare(request, response) {
+  response.type('html').send(renderHtmlTemplate(shareHtmlTemplate, request, 'Shared Result'));
 }
 
 app.get('/', (request, response) => {
@@ -1936,6 +2191,10 @@ app.get('/app', (request, response) => {
     return;
   }
   sendApp(request, response);
+});
+
+app.get('/share/:sessionId', (request, response) => {
+  sendShare(request, response);
 });
 
 app.get('*', (request, response) => {
@@ -2067,18 +2326,20 @@ function startRuntime() {
 }
 
 export function resetTestState() {
-  if (observerNamesWriteTimer) {
-    clearTimeout(observerNamesWriteTimer);
-    observerNamesWriteTimer = null;
-  }
+  flushScheduledWrites();
   sessions.clear();
   messageToSession.clear();
   rateLimitBuckets.clear();
   turnstileAuthTokens.clear();
   observerState.clear();
   primeObserverDirectory();
+  if (!DISABLE_RESULTS_FILE_WRITES) {
+    writeResultsFile();
+  }
   lastSnapshotSentAt = 0;
 }
+
+export { flushScheduledWrites };
 
 export function ingestMqttMessage(topic, payload) {
   const parts = String(topic || '').split('/');

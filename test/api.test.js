@@ -11,12 +11,15 @@ const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.resolve(TEST_DIR, '..');
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-health-check-test-'));
 const observerFile = path.join(tempDir, 'observer.json');
+const resultsFile = path.join(tempDir, 'session-results.json');
 fs.writeFileSync(observerFile, '{}\n', 'utf8');
+fs.writeFileSync(resultsFile, '{\n  "version": 1,\n  "sessions": []\n}\n', 'utf8');
 
 process.env.MESH_HEALTH_DISABLE_RUNTIME = 'true';
 process.env.TURNSTILE_ENABLED = 'false';
 process.env.LOG_LEVEL = 'info';
 process.env.OBSERVERS_FILE = observerFile;
+process.env.RESULTS_FILE = resultsFile;
 process.env.APP_TITLE = 'Boston MeshCore Observer Coverage';
 process.env.APP_EYEBROW = 'Boston MeshCore Observer Coverage';
 process.env.DASH_BROKER_HOST = 'mqttmc01.bostonme.sh:443';
@@ -27,7 +30,12 @@ const serverModule = await import(
   `${pathToFileURL(path.join(REPO_DIR, 'server.js')).href}?test=${Date.now()}`
 );
 
-const { ingestMqttMessage, server, resetTestState } = serverModule;
+const {
+  flushScheduledWrites,
+  ingestMqttMessage,
+  server,
+  resetTestState,
+} = serverModule;
 const packetFixture = JSON.parse(
   fs.readFileSync(path.join(TEST_DIR, 'fixtures/grouptext-message.json'), 'utf8'),
 );
@@ -47,6 +55,7 @@ beforeEach(() => {
 });
 
 after(async () => {
+  flushScheduledWrites();
   await new Promise((resolve, reject) => {
     server.close((error) => {
       if (error) {
@@ -69,6 +78,7 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
   assert.equal(payload.testChannel.hash, '99');
   assert.equal(payload.turnstile.enabled, false);
   assert.equal(payload.mqtt.broker, 'mqttmc01.bostonme.sh:443');
+  assert.equal(payload.results.retentionSeconds, 604800);
 });
 
 test('GET /app includes server-rendered social meta tags', async () => {
@@ -95,6 +105,17 @@ test('GET /manifest.webmanifest returns installable app metadata', async () => {
   assert.equal(payload.icons[0].src, '/logo.png');
 });
 
+test('GET /share/:sessionId returns the dashboard shell', async () => {
+  const response = await fetch(`${baseUrl}/share/example-session`, {
+    redirect: 'manual',
+  });
+  assert.equal(response.status, 200);
+
+  const html = await response.text();
+  assert.match(html, /Observer coverage someone shared with you\./);
+  assert.match(html, /Run Your Own Check/);
+});
+
 test('POST /api/sessions creates a session and GET returns it', async () => {
   const createResponse = await fetch(`${baseUrl}/api/sessions`, {
     method: 'POST',
@@ -109,6 +130,9 @@ test('POST /api/sessions creates a session and GET returns it', async () => {
   assert.match(created.code, /^MHC-[0-9A-F]{6}$/);
   assert.equal(created.status, 'waiting');
   assert.equal(created.maxUses, 3);
+  assert.match(created.sharePath, new RegExp(`^/share/${created.id}$`));
+  assert.equal(created.shareUrl, `${baseUrl}/share/${created.id}`);
+  assert.ok(created.resultExpiresAt >= created.createdAt + 604799000);
 
   const sessionResponse = await fetch(`${baseUrl}/api/sessions/${created.id}`);
   assert.equal(sessionResponse.status, 200);
@@ -117,6 +141,29 @@ test('POST /api/sessions creates a session and GET returns it', async () => {
   assert.equal(session.id, created.id);
   assert.equal(session.code, created.code);
   assert.equal(session.channelHash, '');
+  assert.equal(session.shareUrl, `${baseUrl}/share/${created.id}`);
+});
+
+test('created sessions are persisted in the results file', async () => {
+  const createResponse = await fetch(`${baseUrl}/api/sessions`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: '{}',
+  });
+
+  assert.equal(createResponse.status, 201);
+  const created = await createResponse.json();
+
+  await new Promise((resolve) => setTimeout(resolve, 300));
+
+  const stored = JSON.parse(fs.readFileSync(resultsFile, 'utf8'));
+  assert.equal(stored.version, 1);
+  assert.ok(Array.isArray(stored.sessions));
+  const session = stored.sessions.find((entry) => entry.id === created.id);
+  assert.equal(session?.code, created.code);
+  assert.equal(session?.status, 'waiting');
 });
 
 test('POST /api/verify-turnstile returns disabled when turnstile is off', async () => {

@@ -17,6 +17,7 @@ summarizes observer coverage.
 - a valid MeshCore channel name and secret
 - optional observer name mappings in
   [observer.json](/home/yellowcooln/mesh-health-check/observer.json)
+- writable retained results storage in `session-results.json`
 
 ## Setup
 
@@ -56,7 +57,8 @@ docker compose up -d --build
 6. The dashboard shows health, observer-by-observer receipts, and path detail.
 7. If observer coordinates are known, the dashboard also shows a coverage map
    and a receipt timeline.
-8. In supported browsers, the dashboard can also be installed as a standalone
+8. The user can copy a share link for the current result.
+9. In supported browsers, the dashboard can also be installed as a standalone
    app.
 
 Users can either:
@@ -73,7 +75,13 @@ Users can either:
 Each code:
 - expires after `SESSION_TTL_SECONDS`
 - can be used up to `MAX_USES_PER_CODE` times
-- keeps prior results only in the current browser session
+- keeps prior results in browser-local history only for that browser session
+
+Shared results:
+- are retained server-side for `RESULT_RETENTION_SECONDS`
+- default to one week
+- are pruned automatically once the retention window expires
+- live at `/share/:sessionId`
 
 ## Observer Naming
 
@@ -110,6 +118,8 @@ optional. If the site is public, it should be enabled.
   the active observer window.
 - [observer.json](/home/yellowcooln/mesh-health-check/observer.json) is
   bind-mounted so learned observer names and coordinates survive rebuilds.
+- `session-results.json` should also be bind-mounted so retained share links
+  survive rebuilds.
 - Port `3090` should stay private to your reverse proxy or internal network.
 - `LOG_LEVEL=debug` is useful only when you are tracing MQTT ingest or decode
   problems.
@@ -123,6 +133,8 @@ optional. If the site is public, it should be enabled.
 - `MQTT offline`: check broker settings and credentials in `.env`
 - `WAITING` forever: verify the code was sent to the correct channel and that
   the message reached MQTT
+- shared result says it is unavailable: the retained result likely expired and
+  was pruned from `session-results.json`
 - raw pubkeys instead of names: add mappings to `observer.json` or wait for
   metadata to propagate
 - map missing some observers: they do not have saved coordinates yet

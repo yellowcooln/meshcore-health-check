@@ -18,6 +18,7 @@ The idea for this app came from Nick D from Boston.
 - observer-by-observer receipt tracking with path, RSSI, SNR, and duration data
 - observer timeline view showing when each observer first saw the message
 - observer coverage map with dark/light basemap toggle
+- shareable result links backed by retained server-side session storage
 - installable browser app support via manifest + service worker
 - default observer target sets plus browser-side custom observer selection
 - persistent observer profiles through
@@ -41,7 +42,8 @@ The idea for this app came from Nick D from Boston.
 Each code:
 - expires after `SESSION_TTL_SECONDS`
 - can be used up to `MAX_USES_PER_CODE` times
-- keeps previous results only in the current browser session
+- keeps browser history local to the current browser session
+- keeps shareable results on the server until `RESULT_RETENTION_SECONDS`
 
 ## Project Layout
 
@@ -52,6 +54,7 @@ Each code:
   page, browser logic, service worker, and styles
 - [observer.json](/home/yellowcooln/mesh-health-check/observer.json):
   persistent observer public-key profile map with `name`, `lat`, and `lon`
+- `session-results.json`: retained session result store for shareable links
 - [`.env.example`](/home/yellowcooln/mesh-health-check/.env.example): deployment
   config template
 - [HOWTO.md](/home/yellowcooln/mesh-health-check/HOWTO.md): setup and operator
@@ -78,10 +81,11 @@ Key groups:
 - Channel:
   `TEST_CHANNEL_NAME`, `TEST_CHANNEL_SECRET`, optional `TEST_CHANNEL_HASH`
 - Sessions:
-  `SESSION_TTL_SECONDS`, `MAX_USES_PER_CODE`, `SESSION_RATE_WINDOW_SECONDS`,
-  `SESSION_RATE_MAX`
+  `SESSION_TTL_SECONDS`, `RESULT_RETENTION_SECONDS`, `MAX_USES_PER_CODE`,
+  `SESSION_RATE_WINDOW_SECONDS`, `SESSION_RATE_MAX`
 - Observers:
-  `OBSERVERS_FILE`, `KNOWN_OBSERVERS`, `OBSERVER_ACTIVE_WINDOW_SECONDS`
+  `OBSERVERS_FILE`, `RESULTS_FILE`, `KNOWN_OBSERVERS`,
+  `OBSERVER_ACTIVE_WINDOW_SECONDS`
 - Turnstile:
   `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`,
   `TURNSTILE_API_URL`, `TURNSTILE_COOKIE_NAME`,
@@ -98,9 +102,13 @@ Important behavior:
 - Users can override the default target in the browser for each new code.
 - `observer.json` is loaded at boot and updated when new observer names or
   coordinates are learned from MQTT metadata.
+- `session-results.json` retains shareable result data for the configured
+  retention window and is pruned automatically after expiry.
 - The dashboard map only plots observers that have saved coordinates.
 - `DASH_BROKER_HOST` only changes the broker label shown in the dashboard. It
   does not change the actual MQTT connection target.
+- Result links use `/share/:sessionId` and remain available until the retained
+  result expires.
 - supported browsers can install the site as a standalone app from the
   dashboard.
 
@@ -128,6 +136,8 @@ If Turnstile is enabled:
 
 - The message hash in the active session card links directly to the packet
   analyzer when a hash is available.
+- The current session card includes a `Share` button that copies a retained
+  `/share/:sessionId` link.
 - The coverage map defaults to dark tiles and can be toggled to light tiles in
   the UI.
 - Browsers that support PWA installation will show an `Install App` button in

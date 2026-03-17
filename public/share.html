@@ -24,27 +24,28 @@
     <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
     <link rel="stylesheet" href="/styles.css">
   </head>
-  <body>
+  <body data-page-mode="share">
     <main class="shell">
       <section class="hero">
         <div class="hero-copy">
-          <p class="eyebrow" id="hero-eyebrow">MeshCore Observer Coverage</p>
-          <h1 id="hero-title">Check your mesh reach.</h1>
+          <p class="eyebrow" id="hero-eyebrow">Shared Result</p>
+          <h1 id="hero-title">Observer coverage someone shared with you.</h1>
           <p class="lede">
-            <span id="hero-description-prefix">Generate a test code, send it to</span>
+            <span id="hero-description-prefix">This page is read-only. Review the result from</span>
             <strong id="hero-channel">#health-check</strong>
-            <span id="hero-description-suffix">and watch the observers that receive the message report back in real time.</span>
+            <span id="hero-description-suffix">or open the full dashboard to run your own check.</span>
           </p>
         </div>
-        <div class="hero-card" id="session-card">
+        <div class="hero-card share-hero-card" id="session-card">
           <div class="hero-topline">
-            <span class="pill" id="mqtt-pill">MQTT offline</span>
+            <span class="pill" id="mqtt-pill">Shared Link</span>
             <div class="hero-actions">
               <button class="ghost-button hidden" id="install-app-button" type="button">
                 Install App
               </button>
               <a class="ghost-button hidden" href="#" id="external-link" rel="noopener noreferrer" target="_blank">External Link</a>
-              <button class="ghost-button" id="new-session-button" type="button">
+              <a class="ghost-button" href="/app" id="start-own-check-link">Run Your Own Check</a>
+              <button class="ghost-button hidden" id="new-session-button" type="button">
                 New Code
               </button>
             </div>
@@ -61,7 +62,7 @@
             </div>
           </div>
           <p class="session-instructions" id="session-instructions">
-            Loading session…
+            Loading shared result…
           </p>
           <p class="small-note session-share-note" id="session-share-note">
             Shared links are kept for one week by default.
@@ -83,7 +84,7 @@
         <article class="panel score-panel">
           <div class="panel-header">
             <div>
-              <p class="panel-label">Current Health</p>
+              <p class="panel-label">Shared Health</p>
               <h2 id="health-label">Waiting</h2>
             </div>
             <div class="score-ring">
@@ -110,11 +111,11 @@
           </div>
           <div class="message-preview">
             <span class="meta-label">Matched Message</span>
-            <p id="message-preview">Waiting for your #health-check message.</p>
+            <p id="message-preview">Waiting for a shared result.</p>
           </div>
         </article>
 
-        <article class="panel">
+        <article class="panel share-hidden">
           <div class="panel-header slim">
             <div>
               <p class="panel-label">Observer Set</p>
@@ -187,7 +188,7 @@
           <div class="receipts" id="receipts"></div>
         </article>
 
-        <article class="panel wide">
+        <article class="panel wide share-hidden">
           <div class="panel-header slim">
             <div>
               <p class="panel-label">Recent Sessions</p>
