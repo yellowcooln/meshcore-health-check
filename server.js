@@ -30,7 +30,7 @@ const require = createRequire(import.meta.url);
 const {
   MeshCorePacketDecoder,
   PayloadType: MeshCorePayloadType,
-} = require('meshcore-decoder-multibyte-patch');
+} = require('@michaelhart/meshcore-decoder');
 const IS_MAIN_MODULE = process.argv[1]
   ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
   : false;

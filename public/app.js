@@ -367,11 +367,16 @@ async function copyCurrentCode() {
     return;
   }
 
+  await copyText(code);
+  flashButtonText(ui.copySessionCodeButton, 'Copied');
+}
+
+async function copyText(value) {
   try {
-    await navigator.clipboard.writeText(code);
+    await navigator.clipboard.writeText(value);
   } catch {
     const helper = document.createElement('textarea');
-    helper.value = code;
+    helper.value = value;
     helper.setAttribute('readonly', '');
     helper.style.position = 'absolute';
     helper.style.left = '-9999px';
@@ -380,11 +385,13 @@ async function copyCurrentCode() {
     document.execCommand('copy');
     helper.remove();
   }
+}
 
-  const originalText = ui.copySessionCodeButton.textContent;
-  ui.copySessionCodeButton.textContent = 'Copied';
+function flashButtonText(button, text) {
+  const originalText = button.textContent;
+  button.textContent = text;
   window.setTimeout(() => {
-    ui.copySessionCodeButton.textContent = originalText;
+    button.textContent = originalText;
   }, 1200);
 }
 
@@ -395,25 +402,26 @@ async function copySessionShareLink() {
     return;
   }
 
-  try {
-    await navigator.clipboard.writeText(shareUrl);
-  } catch {
-    const helper = document.createElement('textarea');
-    helper.value = shareUrl;
-    helper.setAttribute('readonly', '');
-    helper.style.position = 'absolute';
-    helper.style.left = '-9999px';
-    document.body.appendChild(helper);
-    helper.select();
-    document.execCommand('copy');
-    helper.remove();
+  const shareData = {
+    title: document.title,
+    text: `Observer coverage for ${session.code}`,
+    url: shareUrl,
+  };
+
+  if (typeof navigator.share === 'function') {
+    try {
+      await navigator.share(shareData);
+      flashButtonText(ui.shareSessionButton, 'Shared');
+      return;
+    } catch (error) {
+      if (error?.name === 'AbortError') {
+        return;
+      }
+    }
   }
 
-  const originalText = ui.shareSessionButton.textContent;
-  ui.shareSessionButton.textContent = 'Link Copied';
-  window.setTimeout(() => {
-    ui.shareSessionButton.textContent = originalText;
-  }, 1200);
+  await copyText(shareUrl);
+  flashButtonText(ui.shareSessionButton, 'Link Copied');
 }
 
 async function createSession() {

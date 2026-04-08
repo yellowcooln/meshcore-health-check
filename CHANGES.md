@@ -1,5 +1,16 @@
 # Changes
 
+## v1.2.1
+
+- switched runtime packet decoding back to `@michaelhart/meshcore-decoder`
+- added a local postinstall compatibility patch so the published decoder still
+  loads on Node 18
+- fixed the dashboard `Share` button so supported browsers use the native share
+  sheet with the retained `/share/:sessionId` link
+- kept clipboard copy as the fallback when the Web Share API is unavailable
+- added smoke-test coverage for the browser share flow and retained share link
+  payload
+
 ## v1.2.0
 
 - added retained share links for session results via `/share/:sessionId`

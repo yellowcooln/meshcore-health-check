@@ -148,7 +148,7 @@ If Turnstile is enabled:
 
 ## Decoder Note
 
-The app now uses `meshcore-decoder-multibyte-patch` for runtime MeshCore packet
-decoding. That package handles the multibyte path-hop format seen on the live
-observer stack and is a better fit than the older single-byte assumptions that
-were causing valid packets to be misread.
+The app now uses `@michaelhart/meshcore-decoder` for runtime MeshCore packet
+decoding. The current upstream package already handles multibyte path-hop data,
+and this repo applies a small postinstall compatibility patch so the published
+CommonJS build still loads cleanly on Node 18.

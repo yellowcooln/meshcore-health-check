@@ -3,6 +3,7 @@ FROM node:22-slim
 WORKDIR /app
 
 COPY package.json package-lock.json ./
+COPY scripts/patch-meshcore-decoder.js ./scripts/patch-meshcore-decoder.js
 
 RUN npm install --omit=dev --no-audit --fund=false
 
