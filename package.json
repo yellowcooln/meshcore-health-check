@@ -1,6 +1,6 @@
 {
   "name": "mesh-health-check",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "private": true,
   "type": "module",
   "description": "MeshCore observer health checker for #health-check message propagation",
@@ -9,6 +9,7 @@
     "check": "node --check server.js && node --check public/app.js && node --check public/turnstile-landing.js",
     "test": "node --test test/*.test.js",
     "test:smoke": "playwright test",
+    "postinstall": "node scripts/patch-meshcore-decoder.js",
     "start": "node server.js",
     "dev": "node --watch server.js"
   },
@@ -16,11 +17,10 @@
     "@playwright/test": "^1.53.1"
   },
   "dependencies": {
-    "@noble/ed25519": "^1.7.3",
+    "@michaelhart/meshcore-decoder": "^0.3.0",
     "dotenv": "^16.4.5",
     "express": "^4.21.2",
     "leaflet": "^1.9.4",
-    "meshcore-decoder-multibyte-patch": "^0.3.0",
     "mqtt": "^5.10.4",
     "ws": "^8.18.3"
   },
