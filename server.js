@@ -333,6 +333,10 @@ const OBSERVER_ACTIVE_WINDOW_MS = Math.max(
   60,
   envNumber('OBSERVER_ACTIVE_WINDOW_SECONDS', 900),
 ) * 1000;
+const OBSERVER_RETENTION_MS = Math.max(
+  300,
+  envNumber('OBSERVER_RETENTION_SECONDS', 14400),
+) * 1000;
 const SESSION_TTL_MS = Math.max(60, envNumber('SESSION_TTL_SECONDS', 600)) * 1000;
 const RESULT_RETENTION_MS = Math.max(
   SESSION_TTL_MS / 1000,
@@ -1478,13 +1482,45 @@ function serializeObserver(observer) {
     packetCount: observer.packetCount,
     firstSeenAt: observer.firstSeenAt,
     lastPacketAt: observer.lastPacketAt,
+    isRetained: observerIsRetained(observer),
     isActive: Date.now() - observer.lastPacketAt <= OBSERVER_ACTIVE_WINDOW_MS,
   };
 }
 
+function observerIsRetained(observer, now = Date.now()) {
+  if (!observer?.lastPacketAt) {
+    return false;
+  }
+  return now - observer.lastPacketAt <= OBSERVER_RETENTION_MS;
+}
+
+function serializeObserverForKey(observerKey) {
+  const observer = ensureObserverRecord(observerKey);
+  if (!observer) {
+    return {
+      key: observerKey,
+      hash: hashFromKeyPrefix(observerKey),
+      label: shortKey(observerKey),
+      name: null,
+      lat: null,
+      lon: null,
+      hasLocation: false,
+      shortKey: shortKey(observerKey),
+      packetCount: 0,
+      firstSeenAt: 0,
+      lastPacketAt: 0,
+      isRetained: false,
+      isActive: false,
+    };
+  }
+  return serializeObserver(observer);
+}
+
 function observerDirectory() {
+  const now = Date.now();
   const defaultKeys = new Set(defaultObserverTarget().keys);
   return [...observerState.values()]
+    .filter((observer) => observerIsRetained(observer, now))
     .sort((left, right) => {
       const leftDefault = defaultKeys.has(left.key) ? 1 : 0;
       const rightDefault = defaultKeys.has(right.key) ? 1 : 0;
@@ -1589,6 +1625,7 @@ function snapshotPayload() {
   const directory = observerDirectory();
   const activeObservers = directory.filter((observer) => observer.isActive);
   const defaultTarget = defaultObserverTarget();
+  const defaultObservers = defaultTarget.keys.map((key) => serializeObserverForKey(key));
   const dashboardBrokerHost = DASH_BROKER_HOST || brokerLabel(MQTT_URL);
 
   return {
@@ -1613,6 +1650,7 @@ function snapshotPayload() {
     },
     observerStats: {
       configuredCount: KNOWN_OBSERVERS.length,
+      retentionSeconds: Math.round(OBSERVER_RETENTION_MS / 1000),
       activeCount: activeObservers.length,
       windowSeconds: Math.round(OBSERVER_ACTIVE_WINDOW_MS / 1000),
     },
@@ -1620,6 +1658,7 @@ function snapshotPayload() {
       retentionSeconds: Math.round(RESULT_RETENTION_MS / 1000),
     },
     defaultObserverKeys: defaultTarget.keys,
+    defaultObservers,
     defaultObserverSource: defaultTarget.source,
     observerDirectory: directory,
     activeObservers,

@@ -86,7 +86,7 @@ Key groups:
   `SESSION_RATE_WINDOW_SECONDS`, `SESSION_RATE_MAX`
 - Observers:
   `OBSERVERS_FILE`, `RESULTS_FILE`, `KNOWN_OBSERVERS`,
-  `OBSERVER_ACTIVE_WINDOW_SECONDS`
+  `OBSERVER_ACTIVE_WINDOW_SECONDS`, `OBSERVER_RETENTION_SECONDS`
 - Turnstile:
   `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`,
   `TURNSTILE_API_URL`, `TURNSTILE_COOKIE_NAME`,
@@ -100,6 +100,8 @@ Important behavior:
   default.
 - If `KNOWN_OBSERVERS` is blank, the default target falls back to observers
   active in the configured time window.
+- Observers fall out of the dashboard directory and map if they have not been
+  heard from within `OBSERVER_RETENTION_SECONDS`.
 - Users can override the default target in the browser for each new code.
 - `data/observer.json` is loaded at boot and updated when new observer names or
   coordinates are learned from MQTT metadata.

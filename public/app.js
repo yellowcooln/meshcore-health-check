@@ -68,6 +68,7 @@ const state = {
   sessions: new Map(),
   socket: null,
   socketRetryTimer: 0,
+  sessionRetargetTimer: 0,
   refreshInFlight: false,
   map: {
     instance: null,
@@ -163,17 +164,72 @@ function observerDirectory() {
   return Array.isArray(state.snapshot?.activeObservers) ? state.snapshot.activeObservers : [];
 }
 
+function configuredDefaultObserverKeys() {
+  const defaults = Array.isArray(state.snapshot?.defaultObserverKeys)
+    ? state.snapshot.defaultObserverKeys
+    : [];
+  return dedupe(defaults);
+}
+
+function shortObserverKey(key) {
+  const value = String(key || '').trim().toUpperCase();
+  if (value.length <= 12) {
+    return value || '--';
+  }
+  return `${value.slice(0, 6)}...${value.slice(-6)}`;
+}
+
+function fallbackObserverRecord(key) {
+  return {
+    key,
+    hash: String(key || '').trim().toUpperCase().slice(0, 2) || '--',
+    label: shortObserverKey(key),
+    name: null,
+    lat: null,
+    lon: null,
+    hasLocation: false,
+    shortKey: shortObserverKey(key),
+    packetCount: 0,
+    firstSeenAt: 0,
+    lastPacketAt: 0,
+    isRetained: false,
+    isActive: false,
+  };
+}
+
+function configuredDefaultObservers() {
+  const defaults = Array.isArray(state.snapshot?.defaultObservers)
+    ? state.snapshot.defaultObservers.filter((observer) => observer?.key)
+    : [];
+  if (defaults.length > 0) {
+    return defaults;
+  }
+  return configuredDefaultObserverKeys().map((key) => fallbackObserverRecord(key));
+}
+
+function selectableObservers() {
+  const merged = new Map();
+  for (const observer of configuredDefaultObservers()) {
+    merged.set(observer.key, { ...observer, isDefaultTarget: true });
+  }
+  for (const observer of observerDirectory()) {
+    const existing = merged.get(observer.key) || {};
+    merged.set(observer.key, {
+      ...existing,
+      ...observer,
+      isDefaultTarget: Boolean(existing.isDefaultTarget),
+    });
+  }
+  return [...merged.values()];
+}
+
 function customSelectedObserverKeys() {
-  const available = new Set(observerDirectory().map((observer) => observer.key));
+  const available = new Set(selectableObservers().map((observer) => observer.key));
   return state.selectedObserverKeys.filter((key) => available.has(key));
 }
 
 function defaultObserverKeys() {
-  const available = new Set(observerDirectory().map((observer) => observer.key));
-  const defaults = Array.isArray(state.snapshot?.defaultObserverKeys)
-    ? state.snapshot.defaultObserverKeys
-    : [];
-  return defaults.filter((key) => available.has(key));
+  return configuredDefaultObserverKeys();
 }
 
 function usingDefaultObserverSet() {
@@ -193,6 +249,59 @@ function defaultObserverTargetSummary() {
     return `Default: ${count} observer${count === 1 ? '' : 's'}.`;
   }
   return `Default: ${count} active observer${count === 1 ? '' : 's'}.`;
+}
+
+function targetPreviewLabel() {
+  return usingDefaultObserverSet() ? 'Default set (next code)' : 'Custom set (next code)';
+}
+
+function sessionTargetKeys(session) {
+  return dedupe(
+    Array.isArray(session?.expectedObservers)
+      ? session.expectedObservers.map((observer) => observer?.key)
+      : [],
+  );
+}
+
+function sameKeys(left, right) {
+  const leftKeys = dedupe(left).sort();
+  const rightKeys = dedupe(right).sort();
+  if (leftKeys.length !== rightKeys.length) {
+    return false;
+  }
+  return leftKeys.every((key, index) => key === rightKeys[index]);
+}
+
+function selectionDiffersFromSession(session) {
+  return !sameKeys(sessionTargetKeys(session), effectiveObserverKeysForCreate());
+}
+
+function sessionCanRetarget(session) {
+  return Boolean(
+    session
+      && !isSharePage()
+      && session.status === 'waiting'
+      && Number(session.useCount || 0) === 0
+      && !session.messageHash
+      && !session.matchedAt,
+  );
+}
+
+function targetPreviewSession() {
+  const knownObservers = new Map(
+    selectableObservers().map((observer) => [observer.key, observer]),
+  );
+  return {
+    expectedObservers: effectiveObserverKeysForCreate().map((key) => {
+      const observer = knownObservers.get(key) || fallbackObserverRecord(key);
+      return {
+        key,
+        hash: observer.hash || '--',
+        label: observer.label,
+        seen: false,
+      };
+    }),
+  };
 }
 
 function sessionObserverSourceLabel(session) {
@@ -425,6 +534,10 @@ async function copySessionShareLink() {
 }
 
 async function createSession() {
+  if (state.sessionRetargetTimer) {
+    window.clearTimeout(state.sessionRetargetTimer);
+    state.sessionRetargetTimer = 0;
+  }
   ui.newSessionButton.disabled = true;
   try {
     const response = await apiFetch('/api/sessions', {
@@ -456,6 +569,21 @@ async function createSession() {
   } finally {
     ui.newSessionButton.disabled = false;
   }
+}
+
+function scheduleSessionRetarget() {
+  if (state.sessionRetargetTimer) {
+    window.clearTimeout(state.sessionRetargetTimer);
+  }
+  state.sessionRetargetTimer = window.setTimeout(() => {
+    state.sessionRetargetTimer = 0;
+    const session = currentSession();
+    if (!sessionCanRetarget(session) || !selectionDiffersFromSession(session)) {
+      render();
+      return;
+    }
+    createSession();
+  }, 200);
 }
 
 function currentSession() {
@@ -491,7 +619,7 @@ function renderExpectedObservers(session) {
 }
 
 function renderObserverAllowlist() {
-  const directory = observerDirectory();
+  const directory = selectableObservers();
   const selected = new Set(effectiveObserverKeysForCreate());
   ui.observerAllowlist.innerHTML = '';
   ui.observerAllowlistClear.disabled = usingDefaultObserverSet();
@@ -511,11 +639,16 @@ function renderObserverAllowlist() {
   for (const observer of directory) {
     const item = document.createElement('label');
     item.className = `observer-option ${observer.isActive ? 'active' : 'inactive'}`;
+    const status = observer.isActive
+      ? 'active'
+      : observer.isRetained === false
+        ? 'not recently heard'
+        : 'idle';
     item.innerHTML = `
       <input type="checkbox" value="${observer.key}" ${selected.has(observer.key) ? 'checked' : ''}>
       <span class="observer-option-copy">
         <strong>${observer.label}</strong>
-        <span>${observer.hash || '--'} · ${observer.shortKey}${observer.isActive ? ' · active' : ' · idle'}</span>
+        <span>${observer.hash || '--'} · ${observer.shortKey} · ${status}</span>
       </span>
     `;
     const checkbox = item.querySelector('input');
@@ -528,7 +661,8 @@ function renderObserverAllowlist() {
       }
       state.selectedObserverKeys = [...next];
       saveSelectedObserverKeys();
-      renderObserverAllowlist();
+      render();
+      scheduleSessionRetarget();
     });
     ui.observerAllowlist.appendChild(item);
   }
@@ -572,17 +706,13 @@ function applySiteBranding(snapshot) {
     || 'and watch observer coverage build in real time.';
 }
 
-function mapTargetObservers(session) {
-  const directoryByKey = new Map(observerDirectory().map((observer) => [observer.key, observer]));
-  const targetKeys = Array.isArray(session?.expectedObservers) && session.expectedObservers.length > 0
-    ? session.expectedObservers.map((observer) => observer.key)
-    : defaultObserverKeys();
+function mapKnownObservers(session) {
+  const directory = observerDirectory();
   const seenKeys = new Set(
     Array.isArray(session?.receipts) ? session.receipts.map((receipt) => receipt.observerKey) : [],
   );
-  return targetKeys
-    .map((key) => directoryByKey.get(key))
-    .filter((observer) => observer && observer.lat != null && observer.lon != null)
+  return directory
+    .filter((observer) => observer.lat != null && observer.lon != null)
     .map((observer) => ({
       ...observer,
       seen: seenKeys.has(observer.key),
@@ -627,7 +757,7 @@ function markerIcon(observer) {
 }
 
 function renderObserverMap(session) {
-  const locatedObservers = mapTargetObservers(session);
+  const locatedObservers = mapKnownObservers(session);
   const mapInstance = ensureObserverMap();
 
   ui.mapThemeToggle.textContent = state.mapTheme === 'dark' ? 'Light Map' : 'Dark Map';
@@ -838,6 +968,7 @@ function render() {
     ui.senderName.textContent = 'Pending';
     ui.channelName.textContent = channelLabel;
     ui.messagePreview.textContent = `Waiting for your ${channelLabel} message.`;
+    ui.messagePreview.title = '';
     ui.expectedSource.textContent = defaultObserverTargetSummary();
     renderObserverAllowlist();
     renderExpectedObservers(null);
@@ -866,11 +997,15 @@ function render() {
   ui.senderName.textContent = session.sender || 'Pending';
   ui.channelName.textContent = session.channelName ? `#${session.channelName}` : channelLabel;
   ui.messagePreview.textContent = session.messageBody || `Waiting for your ${channelLabel} message.`;
-  ui.expectedSource.textContent = sessionObserverSourceLabel(session);
+  ui.messagePreview.title = session.messageBody || '';
+  const showTargetPreview = selectionDiffersFromSession(session);
+  ui.expectedSource.textContent = showTargetPreview
+    ? targetPreviewLabel()
+    : sessionObserverSourceLabel(session);
 
   updateRing(session.healthPercent);
   renderObserverAllowlist();
-  renderExpectedObservers(session);
+  renderExpectedObservers(showTargetPreview ? targetPreviewSession() : session);
   renderObserverMap(session);
   renderReceiptTimeline(session);
   renderReceipts(session);
@@ -1028,7 +1163,8 @@ ui.observerAllowlistClear.addEventListener('click', () => {
   }
   state.selectedObserverKeys = [];
   saveSelectedObserverKeys();
-  renderObserverAllowlist();
+  render();
+  scheduleSessionRetarget();
 });
 
 ui.mapThemeToggle.addEventListener('click', () => {

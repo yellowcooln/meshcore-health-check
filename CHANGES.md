@@ -10,6 +10,10 @@
 - kept clipboard copy as the fallback when the Web Share API is unavailable
 - added smoke-test coverage for the browser share flow and retained share link
   payload
+- changed the coverage map to show all known observers with saved coordinates,
+  not just the current target observer set
+- added `OBSERVER_RETENTION_SECONDS` so stale observers can drop out of the
+  dashboard directory and map after a configurable age
 
 ## v1.2.0
 
