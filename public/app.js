@@ -436,11 +436,20 @@ function healthClass(label) {
   return 'status-poor';
 }
 
-function updateRing(percent) {
+function ringColor(label) {
+  if (label === 'VERY HEALTHY' || label === 'GOOD') return 'var(--good)';
+  if (label === 'FAIR') return 'var(--fair)';
+  if (!label || label === 'Waiting') return 'var(--accent-strong)';
+  return 'var(--poor)';
+}
+
+function updateRing(percent, label) {
   const degrees = Math.max(0, Math.min(100, percent)) * 3.6;
+  const color = ringColor(label);
   document.documentElement.style.setProperty('--ring-angle', `${degrees}deg`);
+  document.documentElement.style.setProperty('--ring-color', color);
   document.querySelector('.score-ring').style.background =
-    `radial-gradient(circle at center, rgba(16, 21, 18, 0.95) 50%, transparent 52%), conic-gradient(var(--accent-strong) ${degrees}deg, rgba(255, 255, 255, 0.08) 0deg)`;
+    `radial-gradient(circle at center, rgba(16, 21, 18, 0.95) 44%, transparent 46%), conic-gradient(${color} ${degrees}deg, rgba(255, 255, 255, 0.08) 0deg)`;
 }
 
 function redirectToLanding() {
@@ -963,7 +972,7 @@ function render() {
     setSessionHash('');
     ui.healthLabel.textContent = 'Waiting';
     ui.healthLabel.className = '';
-    ui.healthPercent.textContent = '0%';
+    ui.healthPercent.innerHTML = '<span class="score-num">0</span><span class="score-unit">%</span>';
     ui.observedCount.textContent = '0 / 0';
     ui.senderName.textContent = 'Pending';
     ui.channelName.textContent = channelLabel;
@@ -976,7 +985,7 @@ function render() {
     renderReceiptTimeline(null);
     renderReceipts(null);
     renderHistory(historySessions);
-    updateRing(0);
+    updateRing(0, 'Waiting');
     return;
   }
 
@@ -992,7 +1001,7 @@ function render() {
   setSessionHash(session.messageHash);
   ui.healthLabel.textContent = session.healthLabel;
   ui.healthLabel.className = healthClass(session.healthLabel);
-  ui.healthPercent.textContent = `${session.healthPercent}%`;
+  ui.healthPercent.innerHTML = `<span class="score-num">${session.healthPercent}</span><span class="score-unit">%</span>`;
   ui.observedCount.textContent = `${session.observedCount} / ${session.expectedCount}`;
   ui.senderName.textContent = session.sender || 'Pending';
   ui.channelName.textContent = session.channelName ? `#${session.channelName}` : channelLabel;
@@ -1003,7 +1012,7 @@ function render() {
     ? targetPreviewLabel()
     : sessionObserverSourceLabel(session);
 
-  updateRing(session.healthPercent);
+  updateRing(session.healthPercent, session.healthLabel);
   renderObserverAllowlist();
   renderExpectedObservers(showTargetPreview ? targetPreviewSession() : session);
   renderObserverMap(session);
