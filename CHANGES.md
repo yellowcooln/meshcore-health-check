@@ -22,15 +22,13 @@
 - switched runtime packet decoding back to `@michaelhart/meshcore-decoder`
 - added a local postinstall compatibility patch so the published decoder still
   loads on Node 18
+- fixed Docker build ordering so the decoder postinstall patch is available
+  during image builds
 - fixed the dashboard `Share` button so supported browsers use the native share
   sheet with the retained `/share/:sessionId` link
 - kept clipboard copy as the fallback when the Web Share API is unavailable
 - added smoke-test coverage for the browser share flow and retained share link
   payload
-- changed the coverage map to show all known observers with saved coordinates,
-  not just the current target observer set
-- added `OBSERVER_RETENTION_SECONDS` so stale observers can drop out of the
-  dashboard directory and map after a configurable age
 
 ## v1.2.0
 
