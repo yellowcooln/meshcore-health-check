@@ -25,6 +25,7 @@ process.env.APP_EYEBROW = 'Boston MeshCore Observer Coverage';
 process.env.DASH_BROKER_HOST = 'mqttmc01.bostonme.sh:443';
 process.env.TEST_CHANNEL_NAME = 'health-check';
 process.env.TEST_CHANNEL_SECRET = 'E6D973AAC5101145AD3A3F3A0B3D52EB';
+process.env.OBSERVER_RETENTION_SECONDS = '14400';
 
 const serverModule = await import(
   `${pathToFileURL(path.join(REPO_DIR, 'server.js')).href}?test=${Date.now()}`
@@ -286,6 +287,40 @@ test('observer metadata learns and exposes saved coordinates from mqtt', async (
   assert.equal(observer?.lat, 42.3601);
   assert.equal(observer?.lon, -71.0589);
   assert.equal(observer?.hasLocation, true);
+});
+
+test('observer directory excludes observers older than the retention window', async () => {
+  const observerKey = 'AF07FC2005E04D08DDA921E64985E62201BF974AE0B0E35084B804229ED11A2B';
+  const realNow = Date.now;
+  const baseNow = realNow();
+
+  Date.now = () => baseNow;
+  try {
+    ingestMqttMessage(
+      `meshcore/BOS/${observerKey}/status`,
+      Buffer.from(JSON.stringify({
+        name: 'Stale Observer',
+        location: {
+          latitude: 42.3601,
+          longitude: -71.0589,
+        },
+      })),
+    );
+  } finally {
+    Date.now = realNow;
+  }
+
+  Date.now = () => baseNow + 14401 * 1000;
+  try {
+    const response = await fetch(`${baseUrl}/api/bootstrap`);
+    assert.equal(response.status, 200);
+    const payload = await response.json();
+    const observer = payload.observerDirectory.find((entry) => entry.key === observerKey);
+
+    assert.equal(observer, undefined);
+  } finally {
+    Date.now = realNow;
+  }
 });
 
 test('same active message with a later hash alias does not reset receipts or uses', async () => {

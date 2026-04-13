@@ -33,6 +33,8 @@ cp .env.example .env
 - set `TEST_CHANNEL_NAME`
 - set `TEST_CHANNEL_SECRET`
 - set `KNOWN_OBSERVERS` if you want a fixed default scoring set
+- set `OBSERVER_RETENTION_SECONDS` if old observers should disappear from the
+  dashboard directory and map after a chosen age
 - set `DASH_BROKER_HOST` if the UI should show a public broker label instead of
   the internal Docker or LAN broker hostname
 - enable Turnstile if the site is internet-facing
@@ -116,6 +118,8 @@ optional. If the site is public, it should be enabled.
   still connects to `MQTT_HOST` or `MQTT_URL`.
 - Default observer scoring comes from `KNOWN_OBSERVERS` if set, otherwise from
   the active observer window.
+- Observers that have not been heard from within `OBSERVER_RETENTION_SECONDS`
+  are omitted from the dashboard directory and map.
 - `data/` is bind-mounted so learned observer names and retained share links
   survive rebuilds.
 - Port `3090` should stay private to your reverse proxy or internal network.

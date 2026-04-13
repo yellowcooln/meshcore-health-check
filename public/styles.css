@@ -301,6 +301,16 @@ body {
   border-top: 1px solid var(--line);
 }
 
+#message-preview {
+  margin: 8px 0 0;
+  max-height: 5.8em;
+  overflow: auto;
+  padding-right: 6px;
+  font-size: 0.94rem;
+  line-height: 1.45;
+  white-space: pre-wrap;
+}
+
 .observer-selector,
 .observer-badges,
 .history-list,
