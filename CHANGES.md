@@ -1,5 +1,22 @@
 # Changes
 
+## v1.2.2
+
+- changed the coverage map to show all known observers with saved coordinates,
+  not just the current target observer set
+- added `OBSERVER_RETENTION_SECONDS` so stale observers can drop out of the
+  dashboard directory and map after a configurable age
+- tightened the matched-message panel so long payloads stop dominating the
+  score card while keeping the full message available on hover
+- kept configured default observers visible in the selector even when they are
+  no longer retained, so the default target set stays aligned with scoring
+- updated the target preview and unused-session regeneration flow so changing
+  the observer selection immediately updates the next code's scoring target
+- expanded API and smoke coverage for retained default observers and
+  observer-target retargeting
+- fixed the dashboard smoke test to expect the retained empty-map note on a
+  fresh boot, which restores GitHub Actions green status for this release
+
 ## v1.2.1
 
 - switched runtime packet decoding back to `@michaelhart/meshcore-decoder`
