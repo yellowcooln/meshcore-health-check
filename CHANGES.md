@@ -17,10 +17,12 @@
 - stopped MQTT metadata with a mismatched embedded observer key from assigning
   another node's location to the topic observer, which prevents marker
   pileups at copied coordinates
-- improved the current health score ring with status-based coloring and SVG
-  stroke rendering to avoid the previous conic-gradient artifact
-- added an optional `data-map-observer-scope="expected"` page hook so custom
-  deployments can make the coverage map follow the active session scoring set
+- merged PR #8 to improve the current health score ring with status-based
+  coloring and SVG stroke rendering, avoiding the previous conic-gradient
+  artifact
+- merged PR #9 to add the optional `data-map-observer-scope="expected"` page
+  hook so custom deployments can make the coverage map follow the active
+  session scoring set
 
 ## v1.2.2
 
