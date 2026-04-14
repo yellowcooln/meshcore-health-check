@@ -30,6 +30,7 @@ const ui = {
   brokerName: document.querySelector('#broker-name'),
   externalLink: document.querySelector('#external-link'),
   repoNoteLink: document.querySelector('#repo-note-link'),
+  siteVersionNote: document.querySelector('#site-version-note'),
   messagePreview: document.querySelector('#message-preview'),
   expectedSource: document.querySelector('#expected-source'),
   expectedObservers: document.querySelector('#expected-observers'),
@@ -53,6 +54,9 @@ const ui = {
 };
 
 const pageMode = document.body?.dataset?.pageMode || 'app';
+const mapObserverScope = document.body?.dataset?.mapObserverScope === 'expected'
+  ? 'expected'
+  : 'directory';
 
 localStorage.removeItem(SESSION_STORAGE_KEY);
 localStorage.removeItem(SESSION_HISTORY_STORAGE_KEY);
@@ -436,11 +440,23 @@ function healthClass(label) {
   return 'status-poor';
 }
 
-function updateRing(percent) {
-  const degrees = Math.max(0, Math.min(100, percent)) * 3.6;
-  document.documentElement.style.setProperty('--ring-angle', `${degrees}deg`);
-  document.querySelector('.score-ring').style.background =
-    `radial-gradient(circle at center, rgba(16, 21, 18, 0.95) 50%, transparent 52%), conic-gradient(var(--accent-strong) ${degrees}deg, rgba(255, 255, 255, 0.08) 0deg)`;
+function ringColor(label) {
+  if (label === 'VERY HEALTHY' || label === 'GOOD') return 'var(--good)';
+  if (label === 'FAIR') return 'var(--fair)';
+  if (!label || label === 'Waiting') return 'var(--accent-strong)';
+  return 'var(--poor)';
+}
+
+function updateRing(percent, label) {
+  const color = ringColor(label);
+  const circumference = 314.16;
+  const offset = circumference * (1 - Math.max(0, Math.min(100, percent)) / 100);
+  document.documentElement.style.setProperty('--ring-color', color);
+  const fill = document.querySelector('.score-ring__fill');
+  if (fill) {
+    fill.style.stroke = color;
+    fill.style.strokeDashoffset = offset;
+  }
 }
 
 function redirectToLanding() {
@@ -671,9 +687,11 @@ function renderObserverAllowlist() {
 function applySiteBranding(snapshot) {
   const site = snapshot?.site || {};
   const title = site.title || 'Mesh Health Check';
+  const version = String(site.version || '').trim() || '0.0.0';
   const eyebrow = site.eyebrow || 'MeshCore Observer Coverage';
   const headline = site.headline || 'Check your mesh reach.';
   const repoUrl = site.repoUrl || 'https://github.com/yellowcooln/meshcore-health-check';
+  const changesUrl = site.changesUrl || `${repoUrl}/blob/main/CHANGES.md`;
   const externalUrl = String(site.externalLinkUrl || '').trim();
   const externalLabel = String(site.externalLinkLabel || '').trim() || 'External Link';
   const description = site.description
@@ -683,6 +701,8 @@ function applySiteBranding(snapshot) {
 
   document.title = isSharePage() ? `${title} Shared Result` : title;
   ui.repoNoteLink.href = repoUrl;
+  ui.siteVersionNote.href = changesUrl;
+  ui.siteVersionNote.textContent = `Version: v${version}`;
   if (externalUrl) {
     ui.externalLink.href = externalUrl;
     ui.externalLink.textContent = externalLabel;
@@ -708,14 +728,33 @@ function applySiteBranding(snapshot) {
 
 function mapKnownObservers(session) {
   const directory = observerDirectory();
+  let source = directory;
+  if (mapObserverScope === 'expected') {
+    const directoryByKey = new Map(directory.map((observer) => [observer.key, observer]));
+    const expected = Array.isArray(session?.expectedObservers)
+      ? session.expectedObservers.filter((observer) => observer?.key)
+      : [];
+    if (expected.length > 0) {
+      source = expected.map((observer) => {
+        const known = directoryByKey.get(observer.key) || fallbackObserverRecord(observer.key);
+        return {
+          ...known,
+          ...observer,
+          lat: known.lat,
+          lon: known.lon,
+          hasLocation: known.hasLocation,
+        };
+      });
+    }
+  }
   const seenKeys = new Set(
     Array.isArray(session?.receipts) ? session.receipts.map((receipt) => receipt.observerKey) : [],
   );
-  return directory
+  return source
     .filter((observer) => observer.lat != null && observer.lon != null)
     .map((observer) => ({
       ...observer,
-      seen: seenKeys.has(observer.key),
+      seen: Boolean(observer.seen) || seenKeys.has(observer.key),
     }));
 }
 
@@ -963,7 +1002,7 @@ function render() {
     setSessionHash('');
     ui.healthLabel.textContent = 'Waiting';
     ui.healthLabel.className = '';
-    ui.healthPercent.textContent = '0%';
+    ui.healthPercent.innerHTML = '<span class="score-num">0</span><span class="score-unit">%</span>';
     ui.observedCount.textContent = '0 / 0';
     ui.senderName.textContent = 'Pending';
     ui.channelName.textContent = channelLabel;
@@ -976,7 +1015,7 @@ function render() {
     renderReceiptTimeline(null);
     renderReceipts(null);
     renderHistory(historySessions);
-    updateRing(0);
+    updateRing(0, 'Waiting');
     return;
   }
 
@@ -992,7 +1031,7 @@ function render() {
   setSessionHash(session.messageHash);
   ui.healthLabel.textContent = session.healthLabel;
   ui.healthLabel.className = healthClass(session.healthLabel);
-  ui.healthPercent.textContent = `${session.healthPercent}%`;
+  ui.healthPercent.innerHTML = `<span class="score-num">${session.healthPercent}</span><span class="score-unit">%</span>`;
   ui.observedCount.textContent = `${session.observedCount} / ${session.expectedCount}`;
   ui.senderName.textContent = session.sender || 'Pending';
   ui.channelName.textContent = session.channelName ? `#${session.channelName}` : channelLabel;
@@ -1003,7 +1042,7 @@ function render() {
     ? targetPreviewLabel()
     : sessionObserverSourceLabel(session);
 
-  updateRing(session.healthPercent);
+  updateRing(session.healthPercent, session.healthLabel);
   renderObserverAllowlist();
   renderExpectedObservers(showTargetPreview ? targetPreviewSession() : session);
   renderObserverMap(session);

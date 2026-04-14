@@ -75,6 +75,7 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
 
   const payload = await response.json();
   assert.equal(payload.site.title, 'Boston MeshCore Observer Coverage');
+  assert.equal(payload.site.version, '1.2.3');
   assert.equal(payload.testChannel.name, 'health-check');
   assert.equal(payload.testChannel.hash, '99');
   assert.equal(payload.turnstile.enabled, false);
@@ -261,7 +262,45 @@ test('fixture packet ingest matches sessions for 3-byte path hashes', async () =
   assert.equal(session.sender, 'Packet Tester');
   assert.equal(session.messageBody, message);
   assert.deepEqual(session.receipts[0].path.slice(0, 3), ['3FA002', '860CCA', 'E0EED9']);
-  assert.equal(session.receipts[0].path.at(-1), 'AF');
+  assert.equal(session.receipts[0].path.at(-1), 'AF07FC');
+});
+
+test('fixture packet ingest matches sessions for 2-byte path hashes', async () => {
+  const createResponse = await fetch(`${baseUrl}/api/sessions`, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: '{}',
+  });
+
+  assert.equal(createResponse.status, 201);
+  const created = await createResponse.json();
+
+  const message = `two byte path ${created.code}`;
+  const envelope = buildGroupTextEnvelope({
+    secretHex: process.env.TEST_CHANNEL_SECRET,
+    sender: 'Packet Tester',
+    message,
+    messageHash: '11223344AABBCCDD',
+    timestamp: 1760000100,
+    path: ['3FA0', '860C', 'E0EE'],
+  });
+
+  ingestMqttMessage(
+    'meshcore/BOS/AF07FC2005E04D08DDA921E64985E62201BF974AE0B0E35084B804229ED11A2B/packets',
+    Buffer.from(JSON.stringify(envelope)),
+  );
+
+  const sessionResponse = await fetch(`${baseUrl}/api/sessions/${created.id}`);
+  assert.equal(sessionResponse.status, 200);
+
+  const session = await sessionResponse.json();
+  assert.equal(session.messageHash, '11223344AABBCCDD');
+  assert.equal(session.sender, 'Packet Tester');
+  assert.equal(session.messageBody, message);
+  assert.deepEqual(session.receipts[0].path.slice(0, 3), ['3FA0', '860C', 'E0EE']);
+  assert.equal(session.receipts[0].path.at(-1), 'AF07');
 });
 
 test('observer metadata learns and exposes saved coordinates from mqtt', async () => {
@@ -287,6 +326,86 @@ test('observer metadata learns and exposes saved coordinates from mqtt', async (
   assert.equal(observer?.lat, 42.3601);
   assert.equal(observer?.lon, -71.0589);
   assert.equal(observer?.hasLocation, true);
+});
+
+test('observer metadata does not rename other observers through origin_id or origin fields', async () => {
+  const observerKey = '11223344556677889900AABBCCDDEEFF00112233445566778899AABBCCDDEEFF';
+  const otherKey = 'FFEEDDCCBBAA0099887766554433221100FFEEDDCCBBAA009988776655443322';
+
+  ingestMqttMessage(
+    `meshcore/BOS/${otherKey}/status`,
+    Buffer.from(JSON.stringify({
+      name: 'Known Observer Name',
+    })),
+  );
+
+  ingestMqttMessage(
+    `meshcore/BOS/${observerKey}/status`,
+    Buffer.from(JSON.stringify({
+      origin_id: otherKey,
+      origin: 'BUR-FOX-HILL',
+      location: {
+        latitude: 42.3601,
+        longitude: -71.0589,
+      },
+    })),
+  );
+
+  const response = await fetch(`${baseUrl}/api/bootstrap`);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  const observer = payload.observerDirectory.find((entry) => entry.key === observerKey);
+  const otherObserver = payload.observerDirectory.find((entry) => entry.key === otherKey);
+
+  assert.equal(observer?.name, null);
+  assert.equal(observer?.lat, null);
+  assert.equal(observer?.lon, null);
+  assert.equal(otherObserver?.name, 'Known Observer Name');
+});
+
+test('observer metadata learns coordinates from decoded mesh packets without renaming the observer', async () => {
+  const observerKey = '6FD3B0588203D942A89EFAF174717C7A7E75FCFED0DA41A2F90764B85BB7B860';
+
+  ingestMqttMessage(
+    `meshcore/BOS/${observerKey}/status`,
+    Buffer.from(JSON.stringify({
+      name: 'Saved Observer Name',
+    })),
+  );
+
+  ingestMqttMessage(
+    `meshcore/BOS/${observerKey}/packets`,
+    Buffer.from('1101266fd3b0588203d942a89efaf174717c7a7e75fcfed0da41a2f90764b85bb7b860a461de694185c5508ff3e8ccb471cc5b9dac8409e92ad370c0887910bbb6205ad1d5529a87cfc33b912cc755896c212a446fb40f46ab551f55a9cd5c7f830afc2bdd400492e3088502450abcfb59432d576f726b2d5265706561746572'),
+  );
+
+  const response = await fetch(`${baseUrl}/api/bootstrap`);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  const observer = payload.observerDirectory.find((entry) => entry.key === observerKey);
+
+  assert.equal(observer?.name, 'Saved Observer Name');
+  assert.equal(observer?.lat, 42.272995);
+  assert.equal(observer?.lon, -71.562683);
+  assert.equal(observer?.hasLocation, true);
+});
+
+test('decoded mesh packet metadata does not attach other nodes to the mqtt observer topic', async () => {
+  const observerKey = 'ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789';
+
+  ingestMqttMessage(
+    `meshcore/BOS/${observerKey}/packets`,
+    Buffer.from('1101266fd3b0588203d942a89efaf174717c7a7e75fcfed0da41a2f90764b85bb7b860a461de694185c5508ff3e8ccb471cc5b9dac8409e92ad370c0887910bbb6205ad1d5529a87cfc33b912cc755896c212a446fb40f46ab551f55a9cd5c7f830afc2bdd400492e3088502450abcfb59432d576f726b2d5265706561746572'),
+  );
+
+  const response = await fetch(`${baseUrl}/api/bootstrap`);
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  const observer = payload.observerDirectory.find((entry) => entry.key === observerKey);
+
+  assert.equal(observer?.name, null);
+  assert.equal(observer?.lat, null);
+  assert.equal(observer?.lon, null);
+  assert.equal(observer?.hasLocation, false);
 });
 
 test('observer directory excludes observers older than the retention window', async () => {

@@ -88,7 +88,11 @@
               <h2 id="health-label">Waiting</h2>
             </div>
             <div class="score-ring">
-              <span id="health-percent">0%</span>
+              <svg class="score-ring__svg" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="score-ring__track" cx="60" cy="60" r="50"/>
+                <circle class="score-ring__fill" cx="60" cy="60" r="50"/>
+              </svg>
+              <span id="health-percent"><span class="score-num">0</span><span class="score-unit">%</span></span>
             </div>
           </div>
           <div class="score-grid">
@@ -200,6 +204,8 @@
       </section>
       <footer class="site-footer">
         <p class="small-note">
+          <a href="https://github.com/yellowcooln/meshcore-health-check/blob/main/CHANGES.md" id="site-version-note" rel="noopener noreferrer" target="_blank">Version: v0.0.0</a>
+          <span aria-hidden="true"> · </span>
           Source:
           <a href="https://github.com/yellowcooln/meshcore-health-check" id="repo-note-link" rel="noopener noreferrer" target="_blank">yellowcooln/meshcore-health-check</a>
         </p>

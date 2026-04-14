@@ -35,6 +35,7 @@ cp .env.example .env
 - set `KNOWN_OBSERVERS` if you want a fixed default scoring set
 - set `OBSERVER_RETENTION_SECONDS` if old observers should disappear from the
   dashboard directory and map after a chosen age
+  Set it to `0` to disable pruning and keep known observers visible.
 - set `DASH_BROKER_HOST` if the UI should show a public broker label instead of
   the internal Docker or LAN broker hostname
 - enable Turnstile if the site is internet-facing

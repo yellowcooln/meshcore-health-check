@@ -31,6 +31,7 @@ const {
   MeshCorePacketDecoder,
   PayloadType: MeshCorePayloadType,
 } = require('@michaelhart/meshcore-decoder');
+const APP_VERSION = String(require('./package.json').version || '').trim() || '0.0.0';
 const IS_MAIN_MODULE = process.argv[1]
   ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
   : false;
@@ -179,6 +180,19 @@ function hashFromKeyPrefix(value) {
   return normalized.slice(0, 2);
 }
 
+function observerPathHop(observerKey, hashSize = 1) {
+  const normalized = normalizeKey(observerKey);
+  const byteSize = Number(hashSize);
+  if (!normalized || !Number.isInteger(byteSize) || byteSize < 1 || byteSize > 3) {
+    return '';
+  }
+  const hopLength = byteSize * 2;
+  if (normalized.length < hopLength) {
+    return '';
+  }
+  return normalized.slice(0, hopLength);
+}
+
 function dedupe(items) {
   return [...new Set(items.filter(Boolean))];
 }
@@ -244,8 +258,13 @@ function parseObserversJson(filePath) {
         rawValue.lon ?? rawValue.lng ?? rawValue.longitude ?? null,
         'lon',
       );
-      if (name || (lat != null && lon != null)) {
-        profiles.set(key, { name: name || '', lat, lon });
+      const hasValidLocation = lat != null && lon != null && !(lat === 0 && lon === 0);
+      if (name || hasValidLocation) {
+        profiles.set(key, {
+          name: name || '',
+          lat: hasValidLocation ? lat : null,
+          lon: hasValidLocation ? lon : null,
+        });
       }
     }
     return profiles;
@@ -333,10 +352,10 @@ const OBSERVER_ACTIVE_WINDOW_MS = Math.max(
   60,
   envNumber('OBSERVER_ACTIVE_WINDOW_SECONDS', 900),
 ) * 1000;
-const OBSERVER_RETENTION_MS = Math.max(
-  300,
-  envNumber('OBSERVER_RETENTION_SECONDS', 14400),
-) * 1000;
+const OBSERVER_RETENTION_SECONDS = envNumber('OBSERVER_RETENTION_SECONDS', 14400);
+const OBSERVER_RETENTION_MS = OBSERVER_RETENTION_SECONDS <= 0
+  ? 0
+  : Math.max(300, OBSERVER_RETENTION_SECONDS) * 1000;
 const SESSION_TTL_MS = Math.max(60, envNumber('SESSION_TTL_SECONDS', 600)) * 1000;
 const RESULT_RETENTION_MS = Math.max(
   SESSION_TTL_MS / 1000,
@@ -729,6 +748,9 @@ function extractLocationCandidate(value) {
   }
   const lat = normalizeCoordinate(value.lat ?? value.latitude ?? null, 'lat');
   const lon = normalizeCoordinate(value.lon ?? value.lng ?? value.longitude ?? null, 'lon');
+  if (lat === 0 && lon === 0) {
+    return null;
+  }
   if (lat != null && lon != null) {
     return { lat, lon };
   }
@@ -1191,13 +1213,6 @@ function extractDeviceName(obj, topic = '') {
     }
   }
 
-  if (topic.endsWith('/status')) {
-    const origin = obj.origin;
-    if (typeof origin === 'string' && origin.trim()) {
-      return origin.trim();
-    }
-  }
-
   return '';
 }
 
@@ -1491,6 +1506,9 @@ function observerIsRetained(observer, now = Date.now()) {
   if (!observer?.lastPacketAt) {
     return false;
   }
+  if (OBSERVER_RETENTION_MS <= 0) {
+    return true;
+  }
   return now - observer.lastPacketAt <= OBSERVER_RETENTION_MS;
 }
 
@@ -1632,10 +1650,12 @@ function snapshotPayload() {
     serverTime: Date.now(),
     site: {
       title: APP_TITLE,
+      version: APP_VERSION,
       eyebrow: APP_EYEBROW,
       headline: APP_HEADLINE,
       description: APP_DESCRIPTION,
       repoUrl: REPO_URL,
+      changesUrl: `${REPO_URL}/blob/main/CHANGES.md`,
       externalLinkUrl: EXTERNAL_LINK_URL,
       externalLinkLabel: EXTERNAL_LINK_LABEL,
     },
@@ -1721,7 +1741,7 @@ function updateObserverLocation(observerKey, location) {
   const normalizedKey = normalizeKey(observerKey);
   const lat = normalizeCoordinate(location?.lat ?? null, 'lat');
   const lon = normalizeCoordinate(location?.lon ?? null, 'lon');
-  if (!normalizedKey || lat == null || lon == null) {
+  if (!normalizedKey || lat == null || lon == null || (lat === 0 && lon === 0)) {
     return false;
   }
   const observer = ensureObserverRecord(normalizedKey);
@@ -1751,13 +1771,14 @@ function handleObserverMetadata(topic, observerKey, payloadBuffer) {
     return false;
   }
 
-  let changed = false;
-  const originId = normalizeKey(parsed.origin_id || parsed.originId || '');
-  if (originId && originId !== observer.key) {
-    changed = updateObserverName(originId, extractDeviceName(parsed, topic)) || changed;
-    changed = updateObserverLocation(originId, extractObserverLocation(parsed)) || changed;
+  const metadataObserverKey = normalizeKey(
+    parsed.origin_id || parsed.originId || parsed.publicKey || parsed.public_key || '',
+  );
+  if (metadataObserverKey && metadataObserverKey !== observer.key) {
+    return false;
   }
 
+  let changed = false;
   const extractedName = extractDeviceName(parsed, topic);
   if (extractedName) {
     changed = updateObserverName(observer.key, extractedName) || changed;
@@ -1945,11 +1966,38 @@ function handlePacketMessage(topic, observerKey, payloadBuffer) {
     return;
   }
 
+  const decodedPayload = packet.payload?.decoded && typeof packet.payload.decoded === 'object'
+    ? packet.payload.decoded
+    : null;
+  const decodedPayloadObserverKey = normalizeKey(decodedPayload?.publicKey || '');
+  const shouldLearnPacketMetadata = Boolean(
+    decodedPayloadObserverKey && decodedPayloadObserverKey === observer.key,
+  );
+  let metadataChanged = false;
+  const decodedAppData = shouldLearnPacketMetadata
+    && decodedPayload?.appData
+    && typeof decodedPayload.appData === 'object'
+    ? decodedPayload.appData
+    : null;
+  for (const metadataSource of shouldLearnPacketMetadata ? [decodedAppData, decodedPayload] : []) {
+    if (!metadataSource) {
+      continue;
+    }
+    metadataChanged = updateObserverLocation(
+      observer.key,
+      extractObserverLocation(metadataSource),
+    ) || metadataChanged;
+  }
+  if (metadataChanged) {
+    broadcastSnapshot(true);
+  }
+
   const path = Array.isArray(packet.path)
     ? packet.path.map((value) => normalizePathHop(value)).filter(Boolean)
     : [];
-  if (observer.hash && path[path.length - 1] !== observer.hash) {
-    path.push(observer.hash);
+  const terminalObserverHop = observerPathHop(observer.key, packet.pathHashSize || 1);
+  if (terminalObserverHop && path[path.length - 1] !== terminalObserverHop) {
+    path.push(terminalObserverHop);
   }
 
   if (packet.payloadType !== MeshCorePayloadType.GroupText || !packet.payload?.decoded) {

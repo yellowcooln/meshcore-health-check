@@ -247,18 +247,52 @@ body {
 }
 
 .score-ring {
-  width: 112px;
-  height: 112px;
-  border-radius: 50%;
+  width: 120px;
+  height: 120px;
+  position: relative;
   display: grid;
   place-items: center;
-  background:
-    radial-gradient(circle at center, rgba(16, 21, 18, 0.95) 50%, transparent 52%),
-    conic-gradient(var(--accent-strong) 0deg, rgba(255, 255, 255, 0.08) 0deg);
-  border: 1px solid var(--line);
   font-family: "Courier New", monospace;
-  font-size: 1.35rem;
   font-weight: 700;
+  line-height: 1;
+}
+
+.score-ring__svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.score-ring__track {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.08);
+  stroke-width: 8;
+}
+
+.score-ring__fill {
+  fill: none;
+  stroke: var(--ring-color, var(--accent-strong));
+  stroke-width: 8;
+  stroke-linecap: round;
+  stroke-dasharray: 314.16;
+  stroke-dashoffset: 314.16;
+  transition: stroke-dashoffset 0.5s ease, stroke 0.4s ease;
+}
+
+.score-num {
+  position: relative;
+  font-size: 1.65rem;
+  color: var(--ring-color, var(--accent-strong));
+  transition: color 0.4s ease;
+}
+
+.score-unit {
+  position: relative;
+  font-size: 0.75rem;
+  opacity: 0.7;
+  vertical-align: super;
 }
 
 .score-grid {

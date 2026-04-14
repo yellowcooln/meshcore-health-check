@@ -1,5 +1,34 @@
 # Changes
 
+## v1.2.3
+
+- fixed receipt-path handling so the app preserves and displays 2-byte and
+  3-byte MeshCore hops instead of collapsing terminal observer hops to 1 byte
+- added API coverage for both 2-byte and 3-byte path rendering so multi-byte
+  route display stays locked in
+- changed `OBSERVER_RETENTION_SECONDS=0` to disable stale-observer pruning
+  instead of collapsing to the minimum retention window
+- stopped decoded packet adverts from renaming observers and started ignoring
+  bogus `0,0` coordinates so repeater self-announces do not pollute the
+  observer directory
+- stopped MQTT `/status` metadata from renaming other observers through
+  `origin_id` or `origin`, so only the actual MQTT-connected observer topic
+  can update its own identity
+- stopped MQTT metadata with a mismatched embedded observer key from assigning
+  another node's location to the topic observer, which prevents marker
+  pileups at copied coordinates
+- merged PR #8 to improve the current health score ring with status-based
+  coloring and SVG stroke rendering, avoiding the previous conic-gradient
+  artifact
+- merged PR #9 to add the optional `data-map-observer-scope="expected"` page
+  hook so custom deployments can make the coverage map follow the active
+  session scoring set
+- linked the footer version label to the repository changelog so users can
+  click straight through to `CHANGES.md`
+- fixed the shared-result page to use the same SVG score ring markup as the
+  main dashboard, keeping the PR #8 score ring rendering consistent across
+  both views
+
 ## v1.2.2
 
 - changed the coverage map to show all known observers with saved coordinates,

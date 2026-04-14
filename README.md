@@ -106,6 +106,8 @@ Important behavior:
   active in the configured time window.
 - Observers fall out of the dashboard directory and map if they have not been
   heard from within `OBSERVER_RETENTION_SECONDS`.
+- Set `OBSERVER_RETENTION_SECONDS=0` to disable stale-observer pruning and
+  keep known observers visible regardless of age.
 - Users can override the default target in the browser for each new code.
 - `data/observer.json` is loaded at boot and updated when new observer names or
   coordinates are learned from MQTT metadata.
@@ -143,6 +145,9 @@ If Turnstile is enabled:
 
 - The message hash in the active session card links directly to the packet
   analyzer when a hash is available.
+- By default, the coverage map plots the current observer directory. Custom
+  deployments can set `data-map-observer-scope="expected"` on the page `<body>`
+  to plot only the observer set used for the active session score.
 - The current session card includes a `Share` button that copies a retained
   `/share/:sessionId` link.
 - The coverage map defaults to dark tiles and can be toggled to light tiles in
