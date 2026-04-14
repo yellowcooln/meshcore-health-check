@@ -23,6 +23,11 @@
 - merged PR #9 to add the optional `data-map-observer-scope="expected"` page
   hook so custom deployments can make the coverage map follow the active
   session scoring set
+- linked the footer version label to the repository changelog so users can
+  click straight through to `CHANGES.md`
+- fixed the shared-result page to use the same SVG score ring markup as the
+  main dashboard, keeping the PR #8 score ring rendering consistent across
+  both views
 
 ## v1.2.2
 
