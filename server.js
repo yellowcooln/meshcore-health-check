@@ -31,6 +31,7 @@ const {
   MeshCorePacketDecoder,
   PayloadType: MeshCorePayloadType,
 } = require('@michaelhart/meshcore-decoder');
+const APP_VERSION = String(require('./package.json').version || '').trim() || '0.0.0';
 const IS_MAIN_MODULE = process.argv[1]
   ? path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)
   : false;
@@ -1649,6 +1650,7 @@ function snapshotPayload() {
     serverTime: Date.now(),
     site: {
       title: APP_TITLE,
+      version: APP_VERSION,
       eyebrow: APP_EYEBROW,
       headline: APP_HEADLINE,
       description: APP_DESCRIPTION,

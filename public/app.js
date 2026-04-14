@@ -30,6 +30,7 @@ const ui = {
   brokerName: document.querySelector('#broker-name'),
   externalLink: document.querySelector('#external-link'),
   repoNoteLink: document.querySelector('#repo-note-link'),
+  siteVersionNote: document.querySelector('#site-version-note'),
   messagePreview: document.querySelector('#message-preview'),
   expectedSource: document.querySelector('#expected-source'),
   expectedObservers: document.querySelector('#expected-observers'),
@@ -671,6 +672,7 @@ function renderObserverAllowlist() {
 function applySiteBranding(snapshot) {
   const site = snapshot?.site || {};
   const title = site.title || 'Mesh Health Check';
+  const version = String(site.version || '').trim() || '0.0.0';
   const eyebrow = site.eyebrow || 'MeshCore Observer Coverage';
   const headline = site.headline || 'Check your mesh reach.';
   const repoUrl = site.repoUrl || 'https://github.com/yellowcooln/meshcore-health-check';
@@ -683,6 +685,7 @@ function applySiteBranding(snapshot) {
 
   document.title = isSharePage() ? `${title} Shared Result` : title;
   ui.repoNoteLink.href = repoUrl;
+  ui.siteVersionNote.textContent = `Version: v${version}`;
   if (externalUrl) {
     ui.externalLink.href = externalUrl;
     ui.externalLink.textContent = externalLabel;
