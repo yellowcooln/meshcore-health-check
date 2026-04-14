@@ -1,4 +1,4 @@
-const CACHE_NAME = 'mesh-health-check-pwa-v1';
+const CACHE_NAME = 'mesh-health-check-pwa-v2';
 const CORE_ASSETS = [
   '/',
   '/app',
@@ -73,6 +73,6 @@ self.addEventListener('fetch', (event) => {
     || url.pathname.endsWith('.js')
     || url.pathname.endsWith('.png')
   ) {
-    event.respondWith(cacheFirst(event.request));
+    event.respondWith(networkFirst(event.request));
   }
 });
