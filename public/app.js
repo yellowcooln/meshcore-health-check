@@ -69,6 +69,7 @@ const state = {
   sharedSessionMissing: false,
   trackedSessionIds: loadTrackedSessionIds(),
   selectedObserverKeys: loadSelectedObserverKeys(),
+  selectedRegionGroup: null,
   selectedRegion: null,
   mapTheme: loadMapTheme(),
   sessions: new Map(),
@@ -194,6 +195,8 @@ function fallbackObserverRecord(key) {
     lat: null,
     lon: null,
     hasLocation: false,
+    region: null,
+    regionGroup: null,
     shortKey: shortObserverKey(key),
     packetCount: 0,
     firstSeenAt: 0,
@@ -638,8 +641,9 @@ function renderExpectedObservers(session) {
 
 function renderRegionFilter() {
   if (!ui.regionFilter) return;
-  const regions = state.snapshot?.availableRegions;
-  if (!Array.isArray(regions) || regions.length === 0) {
+  const { hasGroups, regions } = regionFilterOptions();
+
+  if (regions.length === 0 || regions.every((entry) => entry.regions.length === 0)) {
     ui.regionFilter.classList.add('hidden');
     ui.regionFilter.innerHTML = '';
     return;
@@ -647,41 +651,175 @@ function renderRegionFilter() {
   ui.regionFilter.classList.remove('hidden');
   ui.regionFilter.innerHTML = '';
 
-  const allBtn = document.createElement('button');
-  allBtn.type = 'button';
-  allBtn.className = `region-btn${state.selectedRegion === null ? ' active' : ''}`;
-  allBtn.textContent = 'All';
-  allBtn.addEventListener('click', () => {
-    state.selectedRegion = null;
-    applyRegionSelection();
-  });
-  ui.regionFilter.appendChild(allBtn);
+  const groupRow = document.createElement('div');
+  groupRow.className = 'region-filter__row';
 
-  for (const name of regions) {
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = `region-btn${state.selectedRegion === name ? ' active' : ''}`;
-    btn.textContent = name;
-    btn.addEventListener('click', () => {
-      state.selectedRegion = name;
+  const locatedObserverCount = regions.reduce((sum, entry) => sum + (entry.count || 0), 0);
+  groupRow.appendChild(createRegionButton({
+    className: 'region-btn--all',
+    active: state.selectedRegionGroup === null && state.selectedRegion === null,
+    label: hasGroups ? 'All regions' : 'All',
+    count: locatedObserverCount,
+    onClick: () => {
+      state.selectedRegionGroup = null;
+      state.selectedRegion = null;
       applyRegionSelection();
-    });
-    ui.regionFilter.appendChild(btn);
+    },
+  }));
+
+  if (hasGroups) {
+    for (const entry of regions.filter((item) => item.group)) {
+      groupRow.appendChild(createRegionButton({
+        className: 'region-btn--group',
+        active: state.selectedRegionGroup === entry.group && state.selectedRegion === null,
+        label: entry.group,
+        count: entry.count,
+        onClick: () => {
+          state.selectedRegionGroup = entry.group;
+          state.selectedRegion = null;
+          applyRegionSelection();
+        },
+      }));
+    }
+  }
+  ui.regionFilter.appendChild(groupRow);
+
+  const selectedGroup = state.selectedRegionGroup
+    ? regions.find((entry) => entry.group === state.selectedRegionGroup)
+    : null;
+  const subregionSource = hasGroups
+    ? selectedGroup?.regions || []
+    : regions.flatMap((entry) => entry.regions);
+
+  if (subregionSource.length > 0) {
+    const subregionRow = document.createElement('div');
+    subregionRow.className = 'region-filter__row region-filter__row--subregions';
+
+    if (selectedGroup) {
+      subregionRow.appendChild(createRegionButton({
+        className: 'region-btn--child',
+        active: state.selectedRegion === null,
+        label: `All ${selectedGroup.group}`,
+        count: selectedGroup.count,
+        onClick: () => {
+          state.selectedRegion = null;
+          applyRegionSelection();
+        },
+      }));
+    }
+
+    for (const region of subregionSource) {
+      subregionRow.appendChild(createRegionButton({
+        className: 'region-btn--child',
+        active: state.selectedRegion === region.name,
+        label: region.name,
+        count: region.count,
+        onClick: () => {
+          state.selectedRegion = region.name;
+          if (!state.selectedRegionGroup && hasGroups) {
+            const parent = regions.find((entry) => entry.regions.some((item) => item.name === region.name));
+            state.selectedRegionGroup = parent?.group || null;
+          }
+          applyRegionSelection();
+        },
+      }));
+    }
+    ui.regionFilter.appendChild(subregionRow);
+  }
+}
+
+function regionFilterOptions(snapshot = state.snapshot) {
+  const hierarchy = Array.isArray(snapshot?.regionHierarchy)
+    ? snapshot.regionHierarchy.filter((entry) => Array.isArray(entry.regions) && entry.regions.length > 0)
+    : [];
+  const flatRegions = Array.isArray(snapshot?.availableRegions)
+    ? snapshot.availableRegions.map((name) => ({ name, count: 0 }))
+    : [];
+  const hasGroups = hierarchy.some((entry) => entry.group);
+  const regions = hierarchy.length > 0
+    ? hierarchy
+    : [{ group: '', count: flatRegions.length, regions: flatRegions }];
+  return { hasGroups, regions };
+}
+
+function createRegionButton({ className, active, label, count, onClick }) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = `region-btn ${className}${active ? ' active' : ''}`;
+
+  const labelEl = document.createElement('span');
+  labelEl.textContent = label;
+  btn.appendChild(labelEl);
+
+  if (Number.isFinite(count) && count > 0) {
+    const countEl = document.createElement('span');
+    countEl.className = 'region-btn__count';
+    countEl.textContent = String(count);
+    btn.appendChild(countEl);
+  }
+
+  btn.addEventListener('click', onClick);
+  return btn;
+}
+
+function reconcileRegionSelection(snapshot) {
+  const { hasGroups, regions } = regionFilterOptions(snapshot);
+  if (state.selectedRegionGroup !== null) {
+    const group = regions.find((entry) => entry.group === state.selectedRegionGroup);
+    if (!group) {
+      state.selectedRegionGroup = null;
+      state.selectedRegion = null;
+      state.selectedObserverKeys = [];
+      saveSelectedObserverKeys();
+      return;
+    }
+    if (state.selectedRegion !== null && !group.regions.some((region) => region.name === state.selectedRegion)) {
+      state.selectedRegion = null;
+    }
+    state.selectedObserverKeys = observerKeysForRegionSelection(snapshot);
+    saveSelectedObserverKeys();
+    return;
+  }
+
+  if (state.selectedRegion !== null) {
+    const regionExists = regions.some((entry) => entry.regions.some((region) => region.name === state.selectedRegion));
+    if (!regionExists) {
+      state.selectedRegion = null;
+      state.selectedObserverKeys = [];
+      saveSelectedObserverKeys();
+      return;
+    }
+    if (hasGroups) {
+      const parent = regions.find((entry) => entry.regions.some((region) => region.name === state.selectedRegion));
+      state.selectedRegionGroup = parent?.group || null;
+    }
+    state.selectedObserverKeys = observerKeysForRegionSelection(snapshot);
+    saveSelectedObserverKeys();
   }
 }
 
 function applyRegionSelection() {
-  if (state.selectedRegion === null) {
+  if (state.selectedRegionGroup === null && state.selectedRegion === null) {
     state.selectedObserverKeys = [];
   } else {
-    const directory = state.snapshot?.observerDirectory ?? [];
-    state.selectedObserverKeys = directory
-      .filter((o) => o.region === state.selectedRegion)
-      .map((o) => o.key);
+    state.selectedObserverKeys = observerKeysForRegionSelection(state.snapshot);
   }
   saveSelectedObserverKeys();
   render();
   scheduleSessionRetarget();
+}
+
+function observerKeysForRegionSelection(snapshot = state.snapshot) {
+  const directory = Array.isArray(snapshot?.observerDirectory) ? snapshot.observerDirectory : [];
+  return directory
+    .filter((observer) => {
+      if (state.selectedRegion) {
+        return observer.region === state.selectedRegion
+          && (!state.selectedRegionGroup || observer.regionGroup === state.selectedRegionGroup);
+      }
+      return observer.regionGroup === state.selectedRegionGroup;
+    })
+    .map((observer) => observer.key);
 }
 
 function renderObserverAllowlist() {
@@ -726,6 +864,8 @@ function renderObserverAllowlist() {
       } else {
         next.delete(observer.key);
       }
+      state.selectedRegionGroup = null;
+      state.selectedRegion = null;
       state.selectedObserverKeys = [...next];
       saveSelectedObserverKeys();
       render();
@@ -1103,8 +1243,19 @@ function render() {
 }
 
 function applySnapshot(snapshot) {
+  const previousRegionGroup = state.selectedRegionGroup;
+  const previousRegion = state.selectedRegion;
+  const previousObserverKeys = state.selectedObserverKeys;
+  reconcileRegionSelection(snapshot);
   state.snapshot = snapshot;
   render();
+  if (
+    previousRegionGroup !== state.selectedRegionGroup
+    || previousRegion !== state.selectedRegion
+    || !sameKeys(previousObserverKeys, state.selectedObserverKeys)
+  ) {
+    scheduleSessionRetarget();
+  }
 }
 
 async function refreshTrackedSessions() {
@@ -1251,6 +1402,7 @@ ui.observerAllowlistClear.addEventListener('click', () => {
   if (usingDefaultObserverSet()) {
     return;
   }
+  state.selectedRegionGroup = null;
   state.selectedRegion = null;
   state.selectedObserverKeys = [];
   saveSelectedObserverKeys();

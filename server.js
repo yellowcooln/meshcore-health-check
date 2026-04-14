@@ -287,6 +287,8 @@ const MQTT_TOPICS = dedupe(envList('MQTT_TOPIC').length > 0
 const OBSERVERS_FILE = envValue('OBSERVERS_FILE', 'observer.json');
 const OBSERVERS_FILE_PATH = resolveAppPath(OBSERVERS_FILE);
 const REGIONS_FILE = envValue('REGIONS_FILE', '');
+const REGION_NAME_PROPERTY = envValue('REGION_NAME_PROPERTY', 'name');
+const REGION_GROUP_PROPERTY = envValue('REGION_GROUP_PROPERTY', 'group');
 const RESULTS_FILE = envValue('RESULTS_FILE', 'session-results.json');
 const RESULTS_FILE_PATH = resolveAppPath(RESULTS_FILE);
 const APP_TITLE = envValue('APP_TITLE', 'Mesh Health Check');
@@ -497,6 +499,16 @@ function pointInFeature(lon, lat, geometry) {
   return false;
 }
 
+function regionProperty(properties, names = []) {
+  for (const name of names) {
+    const value = properties?.[name];
+    if (typeof value === 'string' && value.trim()) {
+      return value.trim();
+    }
+  }
+  return '';
+}
+
 function loadRegionBoundaries() {
   if (!REGIONS_FILE) return [];
   const filePath = resolveAppPath(REGIONS_FILE);
@@ -518,24 +530,52 @@ function loadRegionBoundaries() {
     logger.warn('[regions] regions file is not a GeoJSON FeatureCollection — region detection disabled');
     return [];
   }
-  const boundaries = geojson.features.filter((f) => {
-    const type = f?.geometry?.type;
-    return f?.properties?.name && (type === 'Polygon' || type === 'MultiPolygon');
-  });
+  const boundaries = geojson.features.map((feature) => {
+    const properties = feature?.properties || {};
+    const type = feature?.geometry?.type;
+    const name = regionProperty(properties, [
+      REGION_NAME_PROPERTY,
+      'name',
+      'NAME',
+      'name_en',
+      'NAME_2',
+      'NAME_1',
+      'region',
+      'subregion',
+    ]);
+    const group = regionProperty(properties, [
+      REGION_GROUP_PROPERTY,
+      'group',
+      'parent',
+      'regionGroup',
+      'region_group',
+    ]);
+    return {
+      name,
+      group,
+      geometry: feature?.geometry || null,
+      type,
+    };
+  }).filter((entry) => entry.name && (entry.type === 'Polygon' || entry.type === 'MultiPolygon'));
   logger.info(`[regions] loaded ${boundaries.length} region boundaries from ${REGIONS_FILE}`);
   return boundaries;
 }
 
 const regionBoundaries = loadRegionBoundaries();
 
-function deriveRegion(lat, lon) {
-  if (lat == null || lon == null || regionBoundaries.length === 0) return null;
-  for (const feature of regionBoundaries) {
-    if (pointInFeature(lon, lat, feature.geometry)) {
-      return feature.properties.name;
+function deriveRegionInfo(lat, lon) {
+  if (lat == null || lon == null || regionBoundaries.length === 0) {
+    return { region: null, regionGroup: null };
+  }
+  for (const boundary of regionBoundaries) {
+    if (pointInFeature(lon, lat, boundary.geometry)) {
+      return {
+        region: boundary.name,
+        regionGroup: boundary.group || null,
+      };
     }
   }
-  return null;
+  return { region: null, regionGroup: null };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -778,13 +818,15 @@ function createObserverRecord(observerKey) {
   const profile = observerProfiles.get(observerKey) || null;
   const lat = normalizeCoordinate(profile?.lat ?? null, 'lat');
   const lon = normalizeCoordinate(profile?.lon ?? null, 'lon');
+  const regionInfo = deriveRegionInfo(lat, lon);
   return {
     key: observerKey,
     hash: hashFromKeyPrefix(observerKey),
     name: profile?.name || null,
     lat,
     lon,
-    region: deriveRegion(lat, lon),
+    region: regionInfo.region,
+    regionGroup: regionInfo.regionGroup,
     firstSeenAt: 0,
     lastPacketAt: 0,
     packetCount: 0,
@@ -1573,6 +1615,7 @@ function serializeObserver(observer) {
     lon: observer.lon ?? null,
     hasLocation: observer.lat != null && observer.lon != null,
     region: observer.region ?? null,
+    regionGroup: observer.regionGroup ?? null,
     shortKey: shortKey(observer.key),
     packetCount: observer.packetCount,
     firstSeenAt: observer.firstSeenAt,
@@ -1603,6 +1646,8 @@ function serializeObserverForKey(observerKey) {
       lat: null,
       lon: null,
       hasLocation: false,
+      region: null,
+      regionGroup: null,
       shortKey: shortKey(observerKey),
       packetCount: 0,
       firstSeenAt: 0,
@@ -1634,6 +1679,65 @@ function observerDirectory() {
       return left.key.localeCompare(right.key);
     })
     .map(serializeObserver);
+}
+
+function buildRegionHierarchy(directory) {
+  const groups = new Map();
+  const ungrouped = new Map();
+
+  for (const observer of directory) {
+    if (!observer.region) {
+      continue;
+    }
+    const count = Number.isInteger(observer.packetCount) ? observer.packetCount : 0;
+    if (observer.regionGroup) {
+      if (!groups.has(observer.regionGroup)) {
+        groups.set(observer.regionGroup, {
+          group: observer.regionGroup,
+          count: 0,
+          regions: new Map(),
+        });
+      }
+      const group = groups.get(observer.regionGroup);
+      group.count += 1;
+      const region = group.regions.get(observer.region) || {
+        name: observer.region,
+        count: 0,
+        packetCount: 0,
+      };
+      region.count += 1;
+      region.packetCount += count;
+      group.regions.set(observer.region, region);
+    } else {
+      const region = ungrouped.get(observer.region) || {
+        name: observer.region,
+        count: 0,
+        packetCount: 0,
+      };
+      region.count += 1;
+      region.packetCount += count;
+      ungrouped.set(observer.region, region);
+    }
+  }
+
+  const byName = (left, right) => String(left.name || left.group).localeCompare(String(right.name || right.group));
+  const out = [...groups.values()]
+    .map((group) => ({
+      group: group.group,
+      count: group.count,
+      regions: [...group.regions.values()].sort(byName),
+    }))
+    .sort(byName);
+
+  if (ungrouped.size > 0) {
+    out.push({
+      group: '',
+      count: [...ungrouped.values()].reduce((sum, region) => sum + region.count, 0),
+      regions: [...ungrouped.values()].sort(byName),
+    });
+  }
+
+  return out;
 }
 
 function sharePathForSession(session) {
@@ -1725,6 +1829,7 @@ function snapshotPayload() {
   const defaultTarget = defaultObserverTarget();
   const defaultObservers = defaultTarget.keys.map((key) => serializeObserverForKey(key));
   const dashboardBrokerHost = DASH_BROKER_HOST || brokerLabel(MQTT_URL);
+  const regionHierarchy = buildRegionHierarchy(directory);
 
   return {
     serverTime: Date.now(),
@@ -1762,7 +1867,9 @@ function snapshotPayload() {
     defaultObserverSource: defaultTarget.source,
     observerDirectory: directory,
     activeObservers,
+    regionHierarchy,
     availableRegions: [...new Set(directory.map((o) => o.region).filter(Boolean))].sort(),
+    availableRegionGroups: regionHierarchy.map((entry) => entry.group).filter(Boolean),
     testChannel: {
       name: testChannelName,
       hash: testChannelHash || null,
@@ -1834,6 +1941,9 @@ function updateObserverLocation(observerKey, location) {
   observerProfiles.set(normalizedKey, { ...profile, lat, lon });
   observer.lat = lat;
   observer.lon = lon;
+  const regionInfo = deriveRegionInfo(lat, lon);
+  observer.region = regionInfo.region;
+  observer.regionGroup = regionInfo.regionGroup;
   if (changed) {
     logger.debug(`[observer] location ${normalizedKey} -> ${lat}, ${lon}`);
     scheduleObserverNamesWrite();
