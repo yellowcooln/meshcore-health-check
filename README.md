@@ -106,6 +106,8 @@ Important behavior:
   active in the configured time window.
 - Observers fall out of the dashboard directory and map if they have not been
   heard from within `OBSERVER_RETENTION_SECONDS`.
+- Set `OBSERVER_RETENTION_SECONDS=0` to disable stale-observer pruning and
+  keep known observers visible regardless of age.
 - Users can override the default target in the browser for each new code.
 - `data/observer.json` is loaded at boot and updated when new observer names or
   coordinates are learned from MQTT metadata.
