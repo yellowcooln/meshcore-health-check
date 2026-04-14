@@ -87,7 +87,11 @@
               <h2 id="health-label">Waiting</h2>
             </div>
             <div class="score-ring">
-              <span id="health-percent">0%</span>
+              <svg class="score-ring__svg" viewBox="0 0 120 120" aria-hidden="true">
+                <circle class="score-ring__track" cx="60" cy="60" r="50"/>
+                <circle class="score-ring__fill" cx="60" cy="60" r="50"/>
+              </svg>
+              <span id="health-percent"><span class="score-num">0</span><span class="score-unit">%</span></span>
             </div>
           </div>
           <div class="score-grid">
