@@ -163,3 +163,13 @@ The app now uses `@michaelhart/meshcore-decoder` for runtime MeshCore packet
 decoding. The current upstream package already handles multibyte path-hop data,
 and this repo applies a small postinstall compatibility patch so the published
 CommonJS build still loads cleanly on Node 18.
+
+## Star History
+
+<a href="https://www.star-history.com/?repos=yellowcooln%2Fmeshcore-health-check&type=date&legend=top-left">
+ <picture>
+   <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/chart?repos=yellowcooln/meshcore-health-check&type=date&theme=dark&legend=top-left" />
+   <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/chart?repos=yellowcooln/meshcore-health-check&type=date&legend=top-left" />
+   <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=yellowcooln/meshcore-health-check&type=date&legend=top-left" />
+ </picture>
+</a>
