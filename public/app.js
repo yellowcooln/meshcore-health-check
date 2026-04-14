@@ -34,6 +34,7 @@ const ui = {
   expectedSource: document.querySelector('#expected-source'),
   expectedObservers: document.querySelector('#expected-observers'),
   observerAllowlistNote: document.querySelector('#observer-allowlist-note'),
+  regionFilter: document.querySelector('#region-filter'),
   observerAllowlist: document.querySelector('#observer-allowlist'),
   observerAllowlistClear: document.querySelector('#observer-allowlist-clear'),
   mapThemeToggle: document.querySelector('#map-theme-toggle'),
@@ -67,6 +68,7 @@ const state = {
   sharedSessionMissing: false,
   trackedSessionIds: loadTrackedSessionIds(),
   selectedObserverKeys: loadSelectedObserverKeys(),
+  selectedRegion: null,
   mapTheme: loadMapTheme(),
   sessions: new Map(),
   socket: null,
@@ -633,7 +635,56 @@ function renderExpectedObservers(session) {
   }
 }
 
+function renderRegionFilter() {
+  if (!ui.regionFilter) return;
+  const regions = state.snapshot?.availableRegions;
+  if (!Array.isArray(regions) || regions.length === 0) {
+    ui.regionFilter.classList.add('hidden');
+    ui.regionFilter.innerHTML = '';
+    return;
+  }
+  ui.regionFilter.classList.remove('hidden');
+  ui.regionFilter.innerHTML = '';
+
+  const allBtn = document.createElement('button');
+  allBtn.type = 'button';
+  allBtn.className = `region-btn${state.selectedRegion === null ? ' active' : ''}`;
+  allBtn.textContent = 'All';
+  allBtn.addEventListener('click', () => {
+    state.selectedRegion = null;
+    applyRegionSelection();
+  });
+  ui.regionFilter.appendChild(allBtn);
+
+  for (const name of regions) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = `region-btn${state.selectedRegion === name ? ' active' : ''}`;
+    btn.textContent = name;
+    btn.addEventListener('click', () => {
+      state.selectedRegion = name;
+      applyRegionSelection();
+    });
+    ui.regionFilter.appendChild(btn);
+  }
+}
+
+function applyRegionSelection() {
+  if (state.selectedRegion === null) {
+    state.selectedObserverKeys = [];
+  } else {
+    const directory = state.snapshot?.observerDirectory ?? [];
+    state.selectedObserverKeys = directory
+      .filter((o) => o.region === state.selectedRegion)
+      .map((o) => o.key);
+  }
+  saveSelectedObserverKeys();
+  render();
+  scheduleSessionRetarget();
+}
+
 function renderObserverAllowlist() {
+  renderRegionFilter();
   const directory = selectableObservers();
   const selected = new Set(effectiveObserverKeysForCreate());
   ui.observerAllowlist.innerHTML = '';
@@ -1195,6 +1246,7 @@ ui.observerAllowlistClear.addEventListener('click', () => {
   if (usingDefaultObserverSet()) {
     return;
   }
+  state.selectedRegion = null;
   state.selectedObserverKeys = [];
   saveSelectedObserverKeys();
   render();

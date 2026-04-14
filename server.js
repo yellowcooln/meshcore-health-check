@@ -267,6 +267,7 @@ const MQTT_TOPICS = dedupe(envList('MQTT_TOPIC').length > 0
   : ['meshcore/BOS/#']);
 const OBSERVERS_FILE = envValue('OBSERVERS_FILE', 'observer.json');
 const OBSERVERS_FILE_PATH = resolveAppPath(OBSERVERS_FILE);
+const REGIONS_FILE = envValue('REGIONS_FILE', '');
 const RESULTS_FILE = envValue('RESULTS_FILE', 'session-results.json');
 const RESULTS_FILE_PATH = resolveAppPath(RESULTS_FILE);
 const APP_TITLE = envValue('APP_TITLE', 'Mesh Health Check');
@@ -444,6 +445,81 @@ const meshPacketDecoderKeyStore = envTestChannelSecret
       channelSecrets: [envTestChannelSecret],
     })
   : null;
+
+// ─── Region detection ─────────────────────────────────────────────────────────
+
+function pointInRing(px, py, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    if ((yi > py) !== (yj > py) && px < ((xj - xi) * (py - yi)) / (yj - yi) + xi) {
+      inside = !inside;
+    }
+  }
+  return inside;
+}
+
+function pointInPolygonCoords(lon, lat, rings) {
+  if (!pointInRing(lon, lat, rings[0])) return false;
+  for (let i = 1; i < rings.length; i++) {
+    if (pointInRing(lon, lat, rings[i])) return false; // inside a hole
+  }
+  return true;
+}
+
+function pointInFeature(lon, lat, geometry) {
+  if (geometry.type === 'Polygon') {
+    return pointInPolygonCoords(lon, lat, geometry.coordinates);
+  }
+  if (geometry.type === 'MultiPolygon') {
+    return geometry.coordinates.some((poly) => pointInPolygonCoords(lon, lat, poly));
+  }
+  return false;
+}
+
+function loadRegionBoundaries() {
+  if (!REGIONS_FILE) return [];
+  const filePath = resolveAppPath(REGIONS_FILE);
+  let raw;
+  try {
+    raw = fs.readFileSync(filePath, 'utf8');
+  } catch {
+    logger.warn(`[regions] could not read ${filePath} — region detection disabled`);
+    return [];
+  }
+  let geojson;
+  try {
+    geojson = JSON.parse(raw);
+  } catch {
+    logger.warn('[regions] regions file contains invalid JSON — region detection disabled');
+    return [];
+  }
+  if (geojson.type !== 'FeatureCollection' || !Array.isArray(geojson.features)) {
+    logger.warn('[regions] regions file is not a GeoJSON FeatureCollection — region detection disabled');
+    return [];
+  }
+  const boundaries = geojson.features.filter((f) => {
+    const type = f?.geometry?.type;
+    return f?.properties?.name && (type === 'Polygon' || type === 'MultiPolygon');
+  });
+  logger.info(`[regions] loaded ${boundaries.length} region boundaries from ${REGIONS_FILE}`);
+  return boundaries;
+}
+
+const regionBoundaries = loadRegionBoundaries();
+
+function deriveRegion(lat, lon) {
+  if (lat == null || lon == null || regionBoundaries.length === 0) return null;
+  for (const feature of regionBoundaries) {
+    if (pointInFeature(lon, lat, feature.geometry)) {
+      return feature.properties.name;
+    }
+  }
+  return null;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 const observerProfiles = parseObserversJson(OBSERVERS_FILE_PATH);
 const appHtmlTemplate = fs.readFileSync(path.join(APP_DIR, 'public/index.html'), 'utf8');
@@ -681,12 +757,15 @@ if (!fs.existsSync(RESULTS_FILE_PATH) && !DISABLE_RESULTS_FILE_WRITES) {
 
 function createObserverRecord(observerKey) {
   const profile = observerProfiles.get(observerKey) || null;
+  const lat = normalizeCoordinate(profile?.lat ?? null, 'lat');
+  const lon = normalizeCoordinate(profile?.lon ?? null, 'lon');
   return {
     key: observerKey,
     hash: hashFromKeyPrefix(observerKey),
     name: profile?.name || null,
-    lat: normalizeCoordinate(profile?.lat ?? null, 'lat'),
-    lon: normalizeCoordinate(profile?.lon ?? null, 'lon'),
+    lat,
+    lon,
+    region: deriveRegion(lat, lon),
     firstSeenAt: 0,
     lastPacketAt: 0,
     packetCount: 0,
@@ -1478,6 +1557,7 @@ function serializeObserver(observer) {
     lat: observer.lat ?? null,
     lon: observer.lon ?? null,
     hasLocation: observer.lat != null && observer.lon != null,
+    region: observer.region ?? null,
     shortKey: shortKey(observer.key),
     packetCount: observer.packetCount,
     firstSeenAt: observer.firstSeenAt,
@@ -1662,6 +1742,7 @@ function snapshotPayload() {
     defaultObserverSource: defaultTarget.source,
     observerDirectory: directory,
     activeObservers,
+    availableRegions: [...new Set(directory.map((o) => o.region).filter(Boolean))].sort(),
     testChannel: {
       name: testChannelName,
       hash: testChannelHash || null,
