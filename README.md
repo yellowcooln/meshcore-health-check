@@ -8,6 +8,10 @@ message hash.
 
 The idea for this app came from Nick D from Boston.
 
+Other community Health Checks:
+
+- https://healthcheck.ukmesh.com/ - UK Mesh Health Check
+
 ![Coverage example 1](image1.png)
 ![Coverage example 2](image2.png)
 ![Coverage example 3](image3.png)
