@@ -54,6 +54,9 @@ const ui = {
 };
 
 const pageMode = document.body?.dataset?.pageMode || 'app';
+const mapObserverScope = document.body?.dataset?.mapObserverScope === 'expected'
+  ? 'expected'
+  : 'directory';
 
 localStorage.removeItem(SESSION_STORAGE_KEY);
 localStorage.removeItem(SESSION_HISTORY_STORAGE_KEY);
@@ -711,14 +714,33 @@ function applySiteBranding(snapshot) {
 
 function mapKnownObservers(session) {
   const directory = observerDirectory();
+  let source = directory;
+  if (mapObserverScope === 'expected') {
+    const directoryByKey = new Map(directory.map((observer) => [observer.key, observer]));
+    const expected = Array.isArray(session?.expectedObservers)
+      ? session.expectedObservers.filter((observer) => observer?.key)
+      : [];
+    if (expected.length > 0) {
+      source = expected.map((observer) => {
+        const known = directoryByKey.get(observer.key) || fallbackObserverRecord(observer.key);
+        return {
+          ...known,
+          ...observer,
+          lat: known.lat,
+          lon: known.lon,
+          hasLocation: known.hasLocation,
+        };
+      });
+    }
+  }
   const seenKeys = new Set(
     Array.isArray(session?.receipts) ? session.receipts.map((receipt) => receipt.observerKey) : [],
   );
-  return directory
+  return source
     .filter((observer) => observer.lat != null && observer.lon != null)
     .map((observer) => ({
       ...observer,
-      seen: seenKeys.has(observer.key),
+      seen: Boolean(observer.seen) || seenKeys.has(observer.key),
     }));
 }
 

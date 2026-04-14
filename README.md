@@ -145,6 +145,9 @@ If Turnstile is enabled:
 
 - The message hash in the active session card links directly to the packet
   analyzer when a hash is available.
+- By default, the coverage map plots the current observer directory. Custom
+  deployments can set `data-map-observer-scope="expected"` on the page `<body>`
+  to plot only the observer set used for the active session score.
 - The current session card includes a `Share` button that copies a retained
   `/share/:sessionId` link.
 - The coverage map defaults to dark tiles and can be toggled to light tiles in
