@@ -345,6 +345,37 @@ body {
   white-space: pre-wrap;
 }
 
+.region-filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.region-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  padding: 5px 12px;
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+
+.region-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.region-btn.active {
+  background: rgba(111, 217, 106, 0.08);
+  border-color: rgba(111, 217, 106, 0.4);
+  color: var(--good);
+}
+
 .observer-selector,
 .observer-badges,
 .history-list,
