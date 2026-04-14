@@ -735,10 +735,12 @@ function regionFilterOptions(snapshot = state.snapshot) {
   const flatRegions = Array.isArray(snapshot?.availableRegions)
     ? snapshot.availableRegions.map((name) => ({ name, count: 0 }))
     : [];
-  const hasGroups = hierarchy.some((entry) => entry.group);
   const regions = hierarchy.length > 0
     ? hierarchy
     : [{ group: '', count: flatRegions.length, regions: flatRegions }];
+  const namedGroupCount = regions.filter((entry) => entry.group).length;
+  const hasUngroupedRegions = regions.some((entry) => !entry.group && entry.regions.length > 0);
+  const hasGroups = namedGroupCount > 1 || (namedGroupCount > 0 && hasUngroupedRegions);
   return { hasGroups, regions };
 }
 
@@ -764,6 +766,9 @@ function createRegionButton({ className, active, label, count, onClick }) {
 
 function reconcileRegionSelection(snapshot) {
   const { hasGroups, regions } = regionFilterOptions(snapshot);
+  if (!hasGroups && state.selectedRegionGroup !== null) {
+    state.selectedRegionGroup = null;
+  }
   if (state.selectedRegionGroup !== null) {
     const group = regions.find((entry) => entry.group === state.selectedRegionGroup);
     if (!group) {
