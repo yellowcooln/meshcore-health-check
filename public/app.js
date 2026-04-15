@@ -1,13 +1,14 @@
 const SESSION_STORAGE_KEY = 'mesh-health-check-session-id';
 const SESSION_HISTORY_STORAGE_KEY = 'mesh-health-check-session-history';
 const OBSERVER_ALLOWLIST_STORAGE_KEY = 'mesh-health-check-observer-allowlist';
-const MAP_THEME_STORAGE_KEY = 'mesh-health-check-map-theme';
+const UI_THEME_STORAGE_KEY = 'mesh-health-check-ui-theme';
 const ANALYZER_BASE_URL = 'https://analyzer.letsmesh.net/packets?packet_hash=';
 const SHARE_ROUTE_PREFIX = '/share/';
 let deferredInstallPrompt = null;
 
 const ui = {
   mqttPill: document.querySelector('#mqtt-pill'),
+  actionMenu: document.querySelector('#action-menu'),
   installAppButton: document.querySelector('#install-app-button'),
   newSessionButton: document.querySelector('#new-session-button'),
   copySessionCodeButton: document.querySelector('#copy-session-code'),
@@ -28,6 +29,7 @@ const ui = {
   heroDescriptionSuffix: document.querySelector('#hero-description-suffix'),
   heroChannel: document.querySelector('#hero-channel'),
   brokerName: document.querySelector('#broker-name'),
+  modeLabel: document.querySelector('#mode-label'),
   externalLink: document.querySelector('#external-link'),
   repoNoteLink: document.querySelector('#repo-note-link'),
   siteVersionNote: document.querySelector('#site-version-note'),
@@ -37,7 +39,7 @@ const ui = {
   observerAllowlistNote: document.querySelector('#observer-allowlist-note'),
   observerAllowlist: document.querySelector('#observer-allowlist'),
   observerAllowlistClear: document.querySelector('#observer-allowlist-clear'),
-  mapThemeToggle: document.querySelector('#map-theme-toggle'),
+  uiThemeToggle: document.querySelector('#ui-theme-toggle'),
   mapObserverNote: document.querySelector('#map-observer-note'),
   mapEmpty: document.querySelector('#map-empty'),
   observerMap: document.querySelector('#observer-map'),
@@ -51,6 +53,25 @@ const ui = {
   receiptsEmpty: document.querySelector('#receipts-empty'),
   receipts: document.querySelector('#receipts'),
   sessionHistory: document.querySelector('#session-history'),
+  networkWindow: document.querySelector('#network-window'),
+  networkState: document.querySelector('#network-state'),
+  observerDensity: document.querySelector('#observer-density'),
+  observerDensityLabel: document.querySelector('#observer-density-label'),
+  observerDensityDetail: document.querySelector('#observer-density-detail'),
+  observerSparkline: document.querySelector('#observer-sparkline'),
+  observerLoadSparkline: document.querySelector('#observer-load-sparkline'),
+  signalQuality: document.querySelector('#signal-quality'),
+  signalQualityLabel: document.querySelector('#signal-quality-label'),
+  signalSparkline: document.querySelector('#signal-sparkline'),
+  latencyScore: document.querySelector('#latency-score'),
+  latencyLabel: document.querySelector('#latency-label'),
+  latencySparkline: document.querySelector('#latency-sparkline'),
+  detailDrawer: document.querySelector('#detail-drawer'),
+  drawerScrim: document.querySelector('#drawer-scrim'),
+  drawerMeta: document.querySelector('#drawer-meta'),
+  drawerTitle: document.querySelector('#drawer-title'),
+  drawerBody: document.querySelector('#drawer-body'),
+  drawerClose: document.querySelector('#drawer-close'),
 };
 
 const pageMode = document.body?.dataset?.pageMode || 'app';
@@ -68,7 +89,7 @@ const state = {
   sharedSessionMissing: false,
   trackedSessionIds: loadTrackedSessionIds(),
   selectedObserverKeys: loadSelectedObserverKeys(),
-  mapTheme: loadMapTheme(),
+  uiTheme: loadUiTheme(),
   sessions: new Map(),
   socket: null,
   socketRetryTimer: 0,
@@ -80,6 +101,10 @@ const state = {
     layerTheme: '',
     markers: new Map(),
     boundsKey: '',
+  },
+  drawer: {
+    kind: '',
+    key: '',
   },
 };
 
@@ -123,17 +148,48 @@ function saveSelectedObserverKeys() {
   );
 }
 
-function loadMapTheme() {
-  const stored = localStorage.getItem(MAP_THEME_STORAGE_KEY);
+function loadUiTheme() {
+  const stored = localStorage.getItem(UI_THEME_STORAGE_KEY);
   return stored === 'light' ? 'light' : 'dark';
 }
 
-function saveMapTheme() {
-  localStorage.setItem(MAP_THEME_STORAGE_KEY, state.mapTheme);
+function saveUiTheme() {
+  localStorage.setItem(UI_THEME_STORAGE_KEY, state.uiTheme);
+}
+
+function applyUiTheme() {
+  const activeTheme = state.uiTheme === 'dark' ? 'dark' : 'light';
+  document.body.dataset.uiTheme = activeTheme;
+  document.documentElement.style.colorScheme = activeTheme;
+  if (ui.uiThemeToggle) {
+    ui.uiThemeToggle.textContent = activeTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
+  }
+  if (ui.modeLabel) {
+    ui.modeLabel.textContent = isSharePage()
+      ? (activeTheme === 'dark' ? 'Dark Review Surface' : 'Bright Review Surface')
+      : (activeTheme === 'dark' ? 'Dark Command Surface' : 'Bright Command Surface');
+  }
+  const metaThemeColor = document.querySelector('meta[name="theme-color"]');
+  if (metaThemeColor) {
+    metaThemeColor.setAttribute('content', activeTheme === 'dark' ? '#07111d' : '#e9f2ff');
+  }
 }
 
 function dedupe(items) {
   return [...new Set(items.filter(Boolean))];
+}
+
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
 }
 
 function sharedSessionIdFromLocation() {
@@ -400,6 +456,206 @@ function formatElapsed(ms) {
   return `${minutes} min ${seconds}s`;
 }
 
+function formatWindow(seconds) {
+  const value = Math.max(0, Number(seconds) || 0);
+  if (value >= 3600) {
+    const hours = value / 3600;
+    return Number.isInteger(hours) ? `${hours}h window` : `${hours.toFixed(1)}h window`;
+  }
+  if (value >= 60) {
+    const minutes = value / 60;
+    return Number.isInteger(minutes) ? `${minutes}m window` : `${minutes.toFixed(1)}m window`;
+  }
+  return `${value}s window`;
+}
+
+function renderSparkline(element, points, tone = 'neutral') {
+  if (!element) {
+    return;
+  }
+  element.innerHTML = '';
+  element.dataset.tone = tone;
+  const source = Array.isArray(points) && points.length > 0
+    ? points
+    : [10, 12, 11, 14, 13, 12, 15, 12];
+  for (const [index, point] of source.entries()) {
+    const bar = document.createElement('span');
+    bar.className = 'sparkline-bar';
+    bar.style.height = `${clamp(point, 8, 100)}%`;
+    bar.style.animationDelay = `${index * 40}ms`;
+    element.appendChild(bar);
+  }
+}
+
+function scoreTone(score) {
+  if (!Number.isFinite(score)) {
+    return 'neutral';
+  }
+  if (score >= 72) {
+    return 'good';
+  }
+  if (score >= 45) {
+    return 'warning';
+  }
+  return 'critical';
+}
+
+function scoreLabel(score) {
+  if (!Number.isFinite(score)) {
+    return 'Awaiting telemetry';
+  }
+  if (score >= 72) {
+    return 'Nominal signal window';
+  }
+  if (score >= 45) {
+    return 'Degraded signal window';
+  }
+  return 'Critical signal window';
+}
+
+function receiptSignalScore(receipt) {
+  const components = [];
+  if (Number.isFinite(receipt?.rssi)) {
+    components.push(clamp(((Number(receipt.rssi) + 120) / 75) * 100, 0, 100));
+  }
+  if (Number.isFinite(receipt?.snr)) {
+    components.push(clamp(((Number(receipt.snr) + 20) / 40) * 100, 0, 100));
+  }
+  if (components.length === 0) {
+    return null;
+  }
+  return Math.round(components.reduce((sum, value) => sum + value, 0) / components.length);
+}
+
+function transportSummary(snapshot) {
+  const activeCount = Number(snapshot?.observerStats?.activeCount || 0);
+  const windowSeconds = Number(snapshot?.observerStats?.windowSeconds || 0);
+  const directory = Array.isArray(snapshot?.observerDirectory) ? snapshot.observerDirectory : [];
+  const configuredCount = Math.max(directory.length, Number(snapshot?.observerStats?.configuredCount || 0));
+  const maxPacketCount = Math.max(
+    1,
+    ...directory.map((observer) => Number(observer?.packetCount || 0)),
+  );
+  const activityBars = directory.slice(0, 8).map((observer) => {
+    const packetCount = Number(observer?.packetCount || 0);
+    return clamp((packetCount / maxPacketCount) * 100, 10, 100);
+  });
+  const stateLabel = snapshot?.mqtt?.connected ? 'Live' : (isSharePage() ? 'Shared' : 'Offline');
+  return {
+    stateLabel,
+    tone: directory.length > 0
+      ? (snapshot?.mqtt?.connected ? 'good' : (isSharePage() ? 'warning' : 'warning'))
+      : 'neutral',
+    activityBars,
+    density: `${activeCount} / ${configuredCount || 0}`,
+    summary: directory.length > 0
+      ? `${activeCount} active nodes · ${formatWindow(windowSeconds)}`
+      : 'Awaiting observer directory.',
+    detail: directory.length > 0
+      ? `${directory.length} known observer${directory.length === 1 ? '' : 's'} on file.`
+      : 'No observer telemetry yet.',
+  };
+}
+
+function signalSummary(session) {
+  const receipts = Array.isArray(session?.receipts) ? [...session.receipts] : [];
+  const points = receipts
+    .map((receipt) => receiptSignalScore(receipt))
+    .filter((value) => Number.isFinite(value));
+  if (points.length === 0) {
+    return {
+      value: '--',
+      label: 'Awaiting telemetry.',
+      tone: 'neutral',
+      points: [],
+    };
+  }
+  const average = Math.round(points.reduce((sum, value) => sum + value, 0) / points.length);
+  return {
+    value: `${average}%`,
+    label: scoreLabel(average),
+    tone: scoreTone(average),
+    points,
+  };
+}
+
+function latencySummary(session) {
+  const receipts = Array.isArray(session?.receipts)
+    ? [...session.receipts]
+        .filter((receipt) => receipt?.firstSeenAt)
+        .sort((left, right) => left.firstSeenAt - right.firstSeenAt)
+    : [];
+  if (receipts.length === 0) {
+    return {
+      value: '--',
+      label: 'Awaiting receipt spread.',
+      tone: 'neutral',
+      points: [],
+    };
+  }
+  const firstSeenAt = receipts[0].firstSeenAt;
+  const lastSeenAt = receipts[receipts.length - 1].firstSeenAt;
+  const spread = Math.max(0, lastSeenAt - firstSeenAt);
+  const points = receipts.map((receipt) => {
+    if (spread <= 0) {
+      return 100;
+    }
+    return clamp(((receipt.firstSeenAt - firstSeenAt) / spread) * 100, 10, 100);
+  });
+  return {
+    value: spread > 0 ? `+${formatElapsed(spread)}` : '0 ms',
+    label: spread > 0
+      ? `${receipts.length} observers across ${formatElapsed(spread)}`
+      : `${receipts.length} observer${receipts.length === 1 ? '' : 's'} at the same moment`,
+    tone: spread > 45000 ? 'critical' : spread > 12000 ? 'warning' : 'good',
+    points,
+  };
+}
+
+function renderGlanceMetrics(session) {
+  const snapshot = state.snapshot;
+  if (!snapshot) {
+    return;
+  }
+
+  const transport = transportSummary(snapshot);
+  const signal = signalSummary(session);
+  const latency = latencySummary(session);
+
+  if (ui.networkWindow) {
+    ui.networkWindow.textContent = transport.summary;
+  }
+  if (ui.networkState) {
+    ui.networkState.textContent = transport.stateLabel;
+  }
+  if (ui.observerDensity) {
+    ui.observerDensity.textContent = transport.density;
+  }
+  if (ui.observerDensityLabel) {
+    ui.observerDensityLabel.textContent = transport.summary;
+  }
+  if (ui.observerDensityDetail) {
+    ui.observerDensityDetail.textContent = transport.detail;
+  }
+  if (ui.signalQuality) {
+    ui.signalQuality.textContent = signal.value;
+  }
+  if (ui.signalQualityLabel) {
+    ui.signalQualityLabel.textContent = signal.label;
+  }
+  if (ui.latencyScore) {
+    ui.latencyScore.textContent = latency.value;
+  }
+  if (ui.latencyLabel) {
+    ui.latencyLabel.textContent = latency.label;
+  }
+
+  renderSparkline(ui.observerSparkline, transport.activityBars, transport.tone);
+  renderSparkline(ui.observerLoadSparkline, transport.activityBars.slice().reverse(), transport.tone);
+  renderSparkline(ui.signalSparkline, signal.points, signal.tone);
+  renderSparkline(ui.latencySparkline, latency.points, latency.tone);
+}
+
 function retentionNote() {
   const seconds = Number(state.snapshot?.results?.retentionSeconds || 0);
   if (!seconds) {
@@ -625,10 +881,10 @@ function renderExpectedObservers(session) {
     item.className = `observer-pill ${observer.seen ? 'seen' : 'waiting'}`;
     item.innerHTML = `
       <div class="observer-main">
-        <strong class="observer-label">${observer.label}</strong>
-        <div class="small-note observer-hash">${observer.hash || ''}</div>
+        <strong class="observer-label">${escapeHtml(observer.label)}</strong>
+        <div class="small-note observer-hash">${escapeHtml(observer.hash || '')}</div>
       </div>
-      <span class="status">${observer.seen ? 'Seen' : 'Waiting'}</span>
+      <span class="status">${observer.seen ? 'Seen' : 'Standby'}</span>
     `;
     ui.expectedObservers.appendChild(item);
   }
@@ -660,11 +916,13 @@ function renderObserverAllowlist() {
       : observer.isRetained === false
         ? 'not recently heard'
         : 'idle';
+    const locationLabel = observer.hasLocation ? 'mapped' : 'no map';
     item.innerHTML = `
       <input type="checkbox" value="${observer.key}" ${selected.has(observer.key) ? 'checked' : ''}>
       <span class="observer-option-copy">
-        <strong>${observer.label}</strong>
-        <span>${observer.hash || '--'} · ${observer.shortKey} · ${status}</span>
+        <strong>${escapeHtml(observer.label)}</strong>
+        <span>${escapeHtml(observer.hash || '--')} · ${escapeHtml(observer.shortKey)} · ${escapeHtml(status)}</span>
+        <span>${observer.packetCount || 0} packet${observer.packetCount === 1 ? '' : 's'} · ${locationLabel}</span>
       </span>
     `;
     const checkbox = item.querySelector('input');
@@ -728,9 +986,20 @@ function applySiteBranding(snapshot) {
 
 function mapKnownObservers(session) {
   const directory = observerDirectory();
-  let source = directory;
+  const mergedDirectory = new Map();
+  for (const observer of configuredDefaultObservers()) {
+    mergedDirectory.set(observer.key, observer);
+  }
+  for (const observer of directory) {
+    const existing = mergedDirectory.get(observer.key) || {};
+    mergedDirectory.set(observer.key, {
+      ...existing,
+      ...observer,
+    });
+  }
+  let source = [...mergedDirectory.values()];
   if (mapObserverScope === 'expected') {
-    const directoryByKey = new Map(directory.map((observer) => [observer.key, observer]));
+    const directoryByKey = new Map(source.map((observer) => [observer.key, observer]));
     const expected = Array.isArray(session?.expectedObservers)
       ? session.expectedObservers.filter((observer) => observer?.key)
       : [];
@@ -766,6 +1035,7 @@ function ensureObserverMap() {
     zoomControl: true,
     attributionControl: true,
   });
+  state.map.instance.setView([20, 0], 2);
   return state.map.instance;
 }
 
@@ -773,7 +1043,7 @@ function currentTileLayer() {
   if (!window.L) {
     return null;
   }
-  if (state.mapTheme === 'light') {
+  if (state.uiTheme === 'light') {
     return window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
@@ -799,24 +1069,22 @@ function renderObserverMap(session) {
   const locatedObservers = mapKnownObservers(session);
   const mapInstance = ensureObserverMap();
 
-  ui.mapThemeToggle.textContent = state.mapTheme === 'dark' ? 'Light Map' : 'Dark Map';
   ui.mapObserverNote.textContent = locatedObservers.length > 0
     ? `${locatedObservers.filter((observer) => observer.seen).length}/${locatedObservers.length} mapped observers reached.`
-    : 'Waiting for observer coordinates.';
+    : 'No observer coordinates yet. The map stays live and will populate as coordinates arrive.';
   ui.mapEmpty.classList.toggle('hidden', locatedObservers.length > 0);
-  ui.observerMap.classList.toggle('hidden', locatedObservers.length === 0);
 
   if (!mapInstance || !window.L) {
     return;
   }
 
-  if (!state.map.layer || state.map.layerTheme !== state.mapTheme) {
+  if (!state.map.layer || state.map.layerTheme !== state.uiTheme) {
     const nextLayer = currentTileLayer();
     if (state.map.layer) {
       mapInstance.removeLayer(state.map.layer);
     }
     state.map.layer = nextLayer;
-    state.map.layerTheme = state.mapTheme;
+    state.map.layerTheme = state.uiTheme;
     if (nextLayer) {
       nextLayer.addTo(mapInstance);
     }
@@ -853,6 +1121,9 @@ function renderObserverMap(session) {
   if (bounds.length > 0 && boundsKey !== state.map.boundsKey) {
     mapInstance.fitBounds(bounds, { padding: [26, 26], maxZoom: 10 });
     state.map.boundsKey = boundsKey;
+  } else if (bounds.length === 0 && state.map.boundsKey !== '__empty__') {
+    mapInstance.setView([20, 0], 2);
+    state.map.boundsKey = '__empty__';
   }
   window.setTimeout(() => {
     mapInstance.invalidateSize();
@@ -867,6 +1138,12 @@ function renderReceipts(session) {
   for (const receipt of receipts) {
     const card = document.createElement('article');
     card.className = 'receipt-card';
+    card.dataset.observerKey = receipt.observerKey;
+    const signal = receiptSignalScore(receipt);
+    const signalTone = scoreTone(signal);
+    const pathMarkup = receipt.path.length > 0
+      ? receipt.path.map((hop) => `<span>${escapeHtml(hop)}</span>`).join('')
+      : '<span>No path data</span>';
     const metrics = [
       receipt.rssi != null ? `RSSI ${receipt.rssi}` : '',
       receipt.snr != null ? `SNR ${receipt.snr}` : '',
@@ -878,15 +1155,31 @@ function renderReceipts(session) {
     card.innerHTML = `
       <div class="receipt-head">
         <div>
-          <h3 class="receipt-title">${receipt.observerLabel}</h3>
-          <div class="receipt-hash">${receipt.observerHash || ''} · ${receipt.observerShortKey}</div>
+          <h3 class="receipt-title">${escapeHtml(receipt.observerLabel)}</h3>
+          <div class="receipt-hash">${escapeHtml(receipt.observerHash || '')} · ${escapeHtml(receipt.observerShortKey)}</div>
         </div>
         <div class="small-note">${formatTime(receipt.firstSeenAt)}</div>
       </div>
       <p class="receipt-meta">
         Seen ${receipt.count} time${receipt.count === 1 ? '' : 's'}${metrics ? ` · ${metrics}` : ''}
       </p>
-      <div class="receipt-path">${receipt.path.length > 0 ? receipt.path.join(' → ') : 'No path data'}</div>
+      <div class="receipt-meter-grid">
+        <div class="receipt-meter">
+          <span>Signal</span>
+          <div class="meter-track ${signalTone}">
+            <span style="width: ${Number.isFinite(signal) ? signal : 12}%;"></span>
+          </div>
+          <strong>${Number.isFinite(signal) ? `${signal}%` : '--'}</strong>
+        </div>
+        <div class="receipt-meter">
+          <span>Latency</span>
+          <div class="meter-track ${receipt.duration != null && receipt.duration > 1500 ? 'warning' : 'good'}">
+            <span style="width: ${receipt.duration != null ? clamp((Number(receipt.duration) / 3000) * 100, 12, 100) : 20}%;"></span>
+          </div>
+          <strong>${receipt.duration != null ? `${receipt.duration} ms` : 'n/a'}</strong>
+        </div>
+      </div>
+      <div class="receipt-path">${pathMarkup}</div>
     `;
     ui.receipts.appendChild(card);
   }
@@ -949,10 +1242,11 @@ function renderHistory(sessions) {
   for (const session of sessions) {
     const item = document.createElement('article');
     item.className = 'history-item';
+    item.dataset.sessionId = session.id;
     item.innerHTML = `
       <div>
-        <div class="history-code">${session.code}</div>
-        <p>${session.observedCount}/${session.expectedCount} observers · ${session.healthLabel}</p>
+        <div class="history-code">${escapeHtml(session.code)}</div>
+        <p>${session.observedCount}/${session.expectedCount} observers · ${escapeHtml(session.healthLabel)}</p>
       </div>
       <div>
         <strong class="${healthClass(session.healthLabel)}">${session.healthPercent}%</strong>
@@ -963,11 +1257,289 @@ function renderHistory(sessions) {
   }
 }
 
+function drawerStat(label, value) {
+  return `
+    <div class="drawer-stat">
+      <span class="meta-label">${escapeHtml(label)}</span>
+      <strong>${escapeHtml(value)}</strong>
+    </div>
+  `;
+}
+
+function drawerListItem(title, detail, meta = '') {
+  return `
+    <div class="drawer-list__item">
+      <strong>${escapeHtml(title)}</strong>
+      <p>${escapeHtml(detail)}</p>
+      ${meta ? `<div class="small-note">${escapeHtml(meta)}</div>` : ''}
+    </div>
+  `;
+}
+
+function buildDrawerContent() {
+  const snapshot = state.snapshot;
+  const session = currentSession();
+  const directory = selectableObservers();
+  const mappedObservers = mapKnownObservers(session);
+  const receipts = Array.isArray(session?.receipts) ? session.receipts : [];
+  const historySessions = state.trackedSessionIds
+    .map((id) => state.sessions.get(id))
+    .filter(Boolean);
+  const transport = snapshot ? transportSummary(snapshot) : null;
+  const signal = signalSummary(session);
+  const latency = latencySummary(session);
+
+  switch (state.drawer.kind) {
+    case 'session':
+      return {
+        meta: 'Command Sequence',
+        title: session ? `Session ${session.code}` : 'Session Control',
+        body: `
+          <section class="drawer-card">
+            <h3>Session Summary</h3>
+            <div class="drawer-stat-grid">
+              ${drawerStat('Status', session?.status?.toUpperCase() || 'IDLE')}
+              ${drawerStat('Share Window', session ? formatDateTime(session.resultExpiresAt) : retentionNote())}
+              ${drawerStat('Uses Remaining', session ? String(session.usesRemaining) : '--')}
+              ${drawerStat('Hash', session?.messageHash || 'Pending')}
+            </div>
+          </section>
+          <section class="drawer-card">
+            <h3>Operator Instructions</h3>
+            <pre class="drawer-codeblock">${escapeHtml(session?.instructions || 'Create a session to start listening.')}</pre>
+          </section>
+          <section class="drawer-card">
+            <h3>Matched Message</h3>
+            <pre class="drawer-codeblock">${escapeHtml(session?.messageBody || 'Waiting for an incoming message on the configured test channel.')}</pre>
+          </section>
+        `,
+      };
+    case 'transport':
+      return {
+        meta: 'Transport Matrix',
+        title: 'Network Transport',
+        body: `
+          <section class="drawer-card">
+            <h3>Live Transport</h3>
+            <div class="drawer-stat-grid">
+              ${drawerStat('State', transport?.stateLabel || 'Offline')}
+              ${drawerStat('Broker', snapshot?.mqtt?.broker || 'Unknown')}
+              ${drawerStat('Channel', snapshot?.testChannel?.name ? `#${snapshot.testChannel.name}` : 'Unknown')}
+              ${drawerStat('Topics', Array.isArray(snapshot?.mqtt?.topics) ? String(snapshot.mqtt.topics.length) : '0')}
+            </div>
+          </section>
+          <section class="drawer-card">
+            <h3>Observer Window</h3>
+            <div class="drawer-list">
+              ${drawerListItem(
+                'Retention Window',
+                transport?.summary || 'Awaiting observer directory.',
+                transport?.detail || '',
+              )}
+            </div>
+          </section>
+        `,
+      };
+    case 'observers':
+      return {
+        meta: 'Target Matrix',
+        title: 'Observer Targeting',
+        body: directory.length > 0
+          ? `
+            <section class="drawer-card">
+              <h3>Target Summary</h3>
+              <div class="drawer-stat-grid">
+                ${drawerStat('Default Source', snapshot?.defaultObserverSource || 'Unknown')}
+                ${drawerStat('Directory Size', String(directory.length))}
+                ${drawerStat('Selected Mode', usingDefaultObserverSet() ? 'Default set' : 'Custom set')}
+                ${drawerStat('Active Nodes', String(snapshot?.observerStats?.activeCount || 0))}
+              </div>
+            </section>
+            <section class="drawer-card">
+              <h3>Node Inventory</h3>
+              <div class="drawer-list">
+                ${directory.map((observer) => drawerListItem(
+                  observer.label,
+                  `${observer.hash || '--'} · ${observer.shortKey}`,
+                  `${observer.packetCount || 0} packet${observer.packetCount === 1 ? '' : 's'} · ${observer.hasLocation ? 'mapped' : 'no coordinates'} · ${observer.isActive ? 'active' : 'idle'}`,
+                )).join('')}
+              </div>
+            </section>
+          `
+          : `
+            <section class="drawer-card">
+              <h3>Observer Targeting</h3>
+              <p>No observers available yet. Node inventory appears as metadata and packets arrive.</p>
+            </section>
+          `,
+      };
+    case 'map':
+      return {
+        meta: 'Geo View',
+        title: 'Coverage Map',
+        body: mappedObservers.length > 0
+          ? `
+            <section class="drawer-card">
+              <h3>Mapped Observers</h3>
+              <div class="drawer-stat-grid">
+                ${drawerStat('Mapped', String(mappedObservers.length))}
+                ${drawerStat('Reached', String(mappedObservers.filter((observer) => observer.seen).length))}
+                ${drawerStat('Theme', state.uiTheme === 'dark' ? 'Dark mode' : 'Light mode')}
+                ${drawerStat('Scope', mapObserverScope === 'expected' ? 'Expected' : 'Directory')}
+              </div>
+            </section>
+            <section class="drawer-card">
+              <h3>Coordinates</h3>
+              <div class="drawer-list">
+                ${mappedObservers.map((observer) => drawerListItem(
+                  observer.label,
+                  `${observer.lat}, ${observer.lon}`,
+                  `${observer.seen ? 'Seen by this check' : 'Not seen by this check'} · ${observer.hash || '--'}`,
+                )).join('')}
+              </div>
+            </section>
+          `
+          : `
+            <section class="drawer-card">
+              <h3>Coverage Map</h3>
+              <p>Waiting for observer coordinates.</p>
+            </section>
+          `,
+      };
+    case 'reports':
+      return {
+        meta: 'Signal Trace',
+        title: 'Technical Logs',
+        body: receipts.length > 0
+          ? `
+            <section class="drawer-card">
+              <h3>Receipt Summary</h3>
+              <div class="drawer-stat-grid">
+                ${drawerStat('Signal Quality', signal.value)}
+                ${drawerStat('Spread', latency.value)}
+                ${drawerStat('Observer Reports', String(receipts.length))}
+                ${drawerStat('Sender', session?.sender || 'Pending')}
+              </div>
+            </section>
+            <section class="drawer-card">
+              <h3>Trace Lines</h3>
+              <div class="console-lines">
+                ${receipts.map((receipt) => `
+                  <div class="console-line">
+                    <strong>${escapeHtml(receipt.observerLabel)}</strong>
+                    <span>${escapeHtml(formatTime(receipt.firstSeenAt))} · ${escapeHtml(receipt.topic || 'meshcore packet')}</span>
+                    <code>${escapeHtml(receipt.messageHash || 'no-hash')}</code>
+                    <span>${escapeHtml((receipt.path || []).join(' -> ') || 'No path data')}</span>
+                  </div>
+                `).join('')}
+              </div>
+            </section>
+          `
+          : `
+            <section class="drawer-card">
+              <h3>Technical Logs</h3>
+              <p>Timeline appears after the first observer report.</p>
+            </section>
+          `,
+      };
+    case 'history':
+      return {
+        meta: 'Session Archive',
+        title: 'Recent Sessions',
+        body: historySessions.length > 0
+          ? `
+            <section class="drawer-card">
+              <h3>Browser Session History</h3>
+              <div class="drawer-list">
+                ${historySessions.map((entry) => drawerListItem(
+                  entry.code,
+                  `${entry.observedCount}/${entry.expectedCount} observers · ${entry.healthPercent}%`,
+                  `${entry.healthLabel} · ${formatTime(entry.createdAt)}`,
+                )).join('')}
+              </div>
+            </section>
+          `
+          : `
+            <section class="drawer-card">
+              <h3>Recent Sessions</h3>
+              <p>No previous checks in this browser session.</p>
+            </section>
+          `,
+      };
+    case 'receipt': {
+      const receipt = receipts.find((entry) => entry.observerKey === state.drawer.key);
+      if (!receipt) {
+        return null;
+      }
+      return {
+        meta: 'Packet Detail',
+        title: receipt.observerLabel,
+        body: `
+          <section class="drawer-card">
+            <h3>Receipt Metrics</h3>
+            <div class="drawer-stat-grid">
+              ${drawerStat('First Seen', formatTime(receipt.firstSeenAt))}
+              ${drawerStat('Message Hash', receipt.messageHash || 'Pending')}
+              ${drawerStat('RSSI', receipt.rssi != null ? String(receipt.rssi) : 'n/a')}
+              ${drawerStat('SNR', receipt.snr != null ? String(receipt.snr) : 'n/a')}
+              ${drawerStat('Duration', receipt.duration != null ? `${receipt.duration} ms` : 'n/a')}
+              ${drawerStat('Packets', String(receipt.count))}
+            </div>
+          </section>
+          <section class="drawer-card">
+            <h3>Path Trace</h3>
+            <pre class="drawer-codeblock">${escapeHtml((receipt.path || []).join(' -> ') || 'No path data')}</pre>
+          </section>
+        `,
+      };
+    }
+    default:
+      return null;
+  }
+}
+
+function renderDrawer() {
+  if (!ui.detailDrawer || !ui.drawerBody || !ui.drawerMeta || !ui.drawerTitle) {
+    return;
+  }
+  if (!state.drawer.kind) {
+    ui.detailDrawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('drawer-open');
+    return;
+  }
+  const content = buildDrawerContent();
+  if (!content) {
+    state.drawer.kind = '';
+    state.drawer.key = '';
+    ui.detailDrawer.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('drawer-open');
+    return;
+  }
+  ui.drawerMeta.textContent = content.meta;
+  ui.drawerTitle.textContent = content.title;
+  ui.drawerBody.innerHTML = content.body;
+  ui.detailDrawer.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('drawer-open');
+}
+
+function openDrawer(kind, key = '') {
+  state.drawer.kind = kind;
+  state.drawer.key = key;
+  renderDrawer();
+}
+
+function closeDrawer() {
+  state.drawer.kind = '';
+  state.drawer.key = '';
+  renderDrawer();
+}
+
 function render() {
   const snapshot = state.snapshot;
   if (!snapshot) {
     return;
   }
+  applyUiTheme();
 
   const channelLabel = `#${snapshot.testChannel.name}`;
   const historySessions = state.trackedSessionIds
@@ -1015,7 +1587,9 @@ function render() {
     renderReceiptTimeline(null);
     renderReceipts(null);
     renderHistory(historySessions);
+    renderGlanceMetrics(null);
     updateRing(0, 'Waiting');
+    renderDrawer();
     return;
   }
 
@@ -1049,6 +1623,8 @@ function render() {
   renderReceiptTimeline(session);
   renderReceipts(session);
   renderHistory(historySessions);
+  renderGlanceMetrics(session);
+  renderDrawer();
 }
 
 function applySnapshot(snapshot) {
@@ -1206,10 +1782,69 @@ ui.observerAllowlistClear.addEventListener('click', () => {
   scheduleSessionRetarget();
 });
 
-ui.mapThemeToggle.addEventListener('click', () => {
-  state.mapTheme = state.mapTheme === 'dark' ? 'light' : 'dark';
-  saveMapTheme();
-  render();
+if (ui.uiThemeToggle) {
+  ui.uiThemeToggle.addEventListener('click', () => {
+    state.uiTheme = state.uiTheme === 'dark' ? 'light' : 'dark';
+    saveUiTheme();
+    if (ui.actionMenu) {
+      ui.actionMenu.open = false;
+    }
+    render();
+  });
+}
+
+if (ui.drawerClose) {
+  ui.drawerClose.addEventListener('click', () => {
+    closeDrawer();
+  });
+}
+
+if (ui.drawerScrim) {
+  ui.drawerScrim.addEventListener('click', () => {
+    closeDrawer();
+  });
+}
+
+function targetIsPanelInteractive(target) {
+  return Boolean(target.closest(
+    'button, a, input, label, .leaflet-container, .leaflet-control-container, .leaflet-popup, .leaflet-marker-pane, .detail-drawer',
+  ));
+}
+
+document.addEventListener('click', (event) => {
+  if (!(event.target instanceof Element)) {
+    return;
+  }
+  if (ui.actionMenu?.open && !event.target.closest('#action-menu')) {
+    ui.actionMenu.open = false;
+  }
+  const action = event.target.closest('[data-drawer-action]');
+  if (action) {
+    event.preventDefault();
+    openDrawer(action.dataset.drawerAction || '');
+    return;
+  }
+
+  const receiptCard = event.target.closest('.receipt-card[data-observer-key]');
+  if (receiptCard && ui.receipts?.contains(receiptCard) && !targetIsPanelInteractive(event.target)) {
+    openDrawer('receipt', receiptCard.dataset.observerKey || '');
+    return;
+  }
+
+  const panel = event.target.closest('[data-drawer-panel]');
+  if (panel && !targetIsPanelInteractive(event.target)) {
+    openDrawer(panel.dataset.drawerPanel || '');
+  }
+});
+
+window.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape' && ui.actionMenu?.open) {
+    ui.actionMenu.open = false;
+    return;
+  }
+  if (event.key === 'Escape' && state.drawer.kind) {
+    closeDrawer();
+  }
 });
 
 bootstrap();
