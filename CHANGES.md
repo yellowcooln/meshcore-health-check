@@ -1,5 +1,15 @@
 # Changes
 
+## v1.2.5
+
+- redesigned the dashboard, shared-result page, and landing flow into the new
+  control-center UI
+- restored the repeater count metric inside the redesigned health score cards
+  by carrying forward the unique relay-hop counting from matched receipt paths
+- updated the shared-result view to match the redesigned dashboard score layout
+- refined observer targeting panel spacing and integrated the changelog-linked
+  footer version note into the redesigned shell
+
 ## v1.2.4
 
 - added a repeater count metric to the health card by extracting unique relay
