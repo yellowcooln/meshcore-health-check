@@ -897,12 +897,23 @@ body[data-page-mode="share"] .status-pill::before {
   position: absolute;
   top: 30px;
   right: 28px;
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: flex-start;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
   gap: 10px;
-  max-width: min(44%, 360px);
+  width: min(210px, 34%);
+  max-width: 210px;
+}
+
+.hero-stage__brief .toolbar-copy {
+  min-width: 0;
+  padding-right: clamp(0px, 22vw, 250px);
+}
+
+.hero-stage__brief .control-utility-actions .control-button,
+.hero-stage__brief .control-utility-actions a {
+  width: 100%;
 }
 
 body[data-page-mode="share"] .hero-stage__brief .toolbar-copy {
@@ -914,17 +925,18 @@ body[data-page-mode="share"] .hero-stage__brief .control-utility-actions {
   position: absolute;
   top: 30px;
   right: 28px;
-  display: inline-flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  align-items: flex-start;
-  width: auto;
-  max-width: 248px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  width: min(240px, 38%);
+  max-width: 240px;
 }
 
 body[data-page-mode="share"] .hero-stage__brief .control-utility-actions .control-button,
 body[data-page-mode="share"] .hero-stage__brief .control-utility-actions a {
-  flex: 0 1 auto;
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 .copy-button {
