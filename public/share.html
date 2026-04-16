@@ -41,7 +41,7 @@
           <article class="hero-panel hero-stage__lead">
             <div class="dock-brand">
               <div class="brand-orb" aria-hidden="true">
-                <span></span>
+                <img alt="" src="/logo.png">
               </div>
               <div class="brand-copy">
                 <p class="eyebrow" id="hero-eyebrow">Shared Result</p>
@@ -63,32 +63,30 @@
               </div>
             </div>
 
-            <nav class="dock-nav" aria-label="Dashboard sections">
-              <a class="dock-nav__item" href="#command-center">
-                <span>N0</span>
-                <strong>Control</strong>
-              </a>
-              <a class="dock-nav__item" href="#health-at-a-glance">
-                <span>N1</span>
-                <strong>Glance</strong>
-              </a>
-              <a class="dock-nav__item" href="#coverage-map">
-                <span>N2</span>
-                <strong>Map</strong>
-              </a>
-              <a class="dock-nav__item" href="#observer-reports">
-                <span>N3</span>
-                <strong>Logs</strong>
-              </a>
-            </nav>
           </article>
 
           <article class="hero-panel hero-stage__brief">
-            <div class="toolbar-copy">
-              <p class="toolbar-label">Shared Control Center</p>
-              <div>
-                <h2>Health at a glance</h2>
-                <p>Review the retained session, inspect technical traces, and step into a fresh live check only when you need it.</p>
+            <div class="control-center-head">
+              <div class="toolbar-copy">
+                <p class="toolbar-label">Shared Control Center</p>
+                <div>
+                  <h2>Health at a glance</h2>
+                  <p>Review the retained session, inspect technical traces, and step into a fresh live check only when you need it.</p>
+                </div>
+              </div>
+
+              <div class="control-utility-actions">
+                <button class="control-button ghost-button" id="ui-theme-toggle" type="button">
+                  Light Mode
+                </button>
+                <button class="control-button ghost-button hidden" id="install-app-button" type="button">
+                  Install App
+                </button>
+                <a class="control-button ghost-button hidden" href="#" id="external-link" rel="noopener noreferrer" target="_blank">External Link</a>
+                <a class="control-button primary-button" href="/app" id="start-own-check-link">Run Your Own Check</a>
+                <button class="control-button primary-button hidden" id="new-session-button" type="button">
+                  New Code
+                </button>
               </div>
             </div>
 
@@ -100,72 +98,39 @@
               </div>
             </div>
 
-            <div class="dock-meta hero-stage__meta-strip">
-              <div class="dock-meta__item">
-                <span class="meta-label">Console</span>
-                <strong>Shared Session Review</strong>
-              </div>
-              <div class="dock-meta__item">
-                <span class="meta-label">Mode</span>
-                <strong id="mode-label">Dark Review Surface</strong>
-              </div>
-            </div>
           </article>
 
-          <div class="hero-actions-stack hero-stage__action-rail">
-            <details class="action-menu" id="action-menu">
-              <summary class="control-button ghost-button action-menu__button">Menu</summary>
-              <div class="action-menu__panel">
-                <button class="control-button ghost-button action-menu__item" id="ui-theme-toggle" type="button">
-                  Light Mode
-                </button>
-                <button class="control-button ghost-button action-menu__item hidden" id="install-app-button" type="button">
-                  Install App
-                </button>
-                <a class="control-button ghost-button action-menu__item hidden" href="#" id="external-link" rel="noopener noreferrer" target="_blank">External Link</a>
-              </div>
-            </details>
-            <a class="control-button primary-button" href="/app" id="start-own-check-link">Run Your Own Check</a>
-            <button class="control-button primary-button hidden" id="new-session-button" type="button">
-              New Code
-            </button>
-          </div>
-
           <section class="glance-grid telemetry-strip" id="health-at-a-glance">
-            <article class="glance-card telemetry-strip__item" data-drawer-panel="transport">
+            <article class="glance-card telemetry-strip__item">
             <div class="glance-card__head">
               <span class="panel-label">Transport</span>
-              <button class="panel-lens" data-drawer-action="transport" type="button">Inspect</button>
             </div>
             <strong class="glance-card__value" id="network-state">Shared</strong>
             <div class="sparkline" id="observer-sparkline" aria-hidden="true"></div>
             <p class="small-note" id="observer-density-label">Awaiting observer directory.</p>
             </article>
 
-            <article class="glance-card telemetry-strip__item" data-drawer-panel="map">
+            <article class="glance-card telemetry-strip__item">
             <div class="glance-card__head">
               <span class="panel-label">Mapped Nodes</span>
-              <button class="panel-lens" data-drawer-action="map" type="button">Inspect</button>
             </div>
             <strong class="glance-card__value" id="observer-density">0 / 0</strong>
             <div class="sparkline" id="observer-load-sparkline" aria-hidden="true"></div>
             <p class="small-note" id="observer-density-detail">No observer telemetry yet.</p>
             </article>
 
-            <article class="glance-card telemetry-strip__item" data-drawer-panel="health">
+            <article class="glance-card telemetry-strip__item">
             <div class="glance-card__head">
               <span class="panel-label">Signal Quality</span>
-              <button class="panel-lens" data-drawer-action="health" type="button">Inspect</button>
             </div>
             <strong class="glance-card__value" id="signal-quality">--</strong>
             <div class="sparkline" id="signal-sparkline" aria-hidden="true"></div>
             <p class="small-note" id="signal-quality-label">Awaiting telemetry.</p>
             </article>
 
-            <article class="glance-card telemetry-strip__item" data-drawer-panel="reports">
+            <article class="glance-card telemetry-strip__item">
             <div class="glance-card__head">
               <span class="panel-label">Receipt Spread</span>
-              <button class="panel-lens" data-drawer-action="reports" type="button">Inspect</button>
             </div>
             <strong class="glance-card__value" id="latency-score">--</strong>
             <div class="sparkline" id="latency-sparkline" aria-hidden="true"></div>
@@ -175,13 +140,12 @@
         </section>
 
         <section class="command-grid">
-          <article class="panel command-panel marquee-panel share-hero-card" data-drawer-panel="session" id="command-center">
+          <article class="panel command-panel marquee-panel share-hero-card" id="command-center">
             <div class="panel-header">
               <div>
                 <p class="panel-label">Retained Session</p>
                 <h2>Shared Control</h2>
               </div>
-              <button class="panel-lens" data-drawer-action="session" type="button">Inspect</button>
             </div>
 
             <div class="marquee-layout">
@@ -218,13 +182,12 @@
                 </div>
               </div>
 
-              <section class="health-pocket" data-drawer-panel="health">
+              <section class="health-pocket">
                 <div class="health-pocket__head">
                   <div>
                     <p class="panel-label">Shared Health</p>
                     <h2 id="health-label">Waiting</h2>
                   </div>
-                  <button class="panel-lens" data-drawer-action="health" type="button">Deep Dive</button>
                 </div>
 
                 <div class="health-pocket__content">
@@ -244,6 +207,10 @@
                     <div class="metric-card">
                       <span class="metric-label">Sender</span>
                       <strong id="sender-name">Pending</strong>
+                    </div>
+                    <div class="metric-card">
+                      <span class="metric-label">Repeaters</span>
+                      <strong id="repeater-count">0</strong>
                     </div>
                     <div class="metric-card">
                       <span class="metric-label">Channel</span>
@@ -266,14 +233,11 @@
         </section>
 
         <section class="dashboard-grid">
-          <article class="panel map-panel spotlight-panel" id="coverage-map" data-drawer-panel="map">
+          <article class="panel map-panel spotlight-panel" id="coverage-map">
             <div class="panel-header slim">
               <div>
                 <p class="panel-label">Coverage Map</p>
                 <h2>Where the observers are</h2>
-              </div>
-              <div class="panel-actions">
-                <button class="panel-lens" data-drawer-action="map" type="button">Inspect</button>
               </div>
             </div>
             <p class="small-note" id="map-observer-note">Waiting for observer coordinates.</p>
@@ -283,7 +247,7 @@
             <div class="observer-map" id="observer-map"></div>
           </article>
 
-          <article class="panel observer-panel share-hidden" data-drawer-panel="observers" id="observer-targets">
+          <article class="panel observer-panel share-hidden" id="observer-targets">
             <div class="panel-header slim">
               <div>
                 <p class="panel-label">Observer Set</p>
@@ -293,7 +257,6 @@
                 <button class="ghost-button" id="observer-allowlist-clear" type="button">
                   Default Set
                 </button>
-                <button class="panel-lens" data-drawer-action="observers" type="button">Inspect</button>
               </div>
             </div>
             <p class="small-note allowlist-note" id="observer-allowlist-note">
@@ -311,7 +274,7 @@
             <div class="observer-badges" id="expected-observers"></div>
           </article>
 
-          <article class="panel reports-panel ledger-panel" id="observer-reports" data-drawer-panel="reports">
+          <article class="panel reports-panel ledger-panel" id="observer-reports">
             <div class="panel-header slim">
               <div>
                 <p class="panel-label">Observer Reports</p>
@@ -319,7 +282,6 @@
               </div>
               <div class="panel-actions">
                 <p class="small-note" id="active-observer-note">0 active observers</p>
-                <button class="panel-lens" data-drawer-action="reports" type="button">Inspect</button>
               </div>
             </div>
             <div class="timeline-block">
@@ -350,7 +312,6 @@
                 <p class="panel-label">Recent Sessions</p>
                 <h2>Previous checks</h2>
               </div>
-              <button class="panel-lens" data-drawer-action="history" type="button">Inspect</button>
             </div>
             <div class="history-list" id="session-history"></div>
           </article>

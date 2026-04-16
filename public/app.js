@@ -8,7 +8,6 @@ let deferredInstallPrompt = null;
 
 const ui = {
   mqttPill: document.querySelector('#mqtt-pill'),
-  actionMenu: document.querySelector('#action-menu'),
   installAppButton: document.querySelector('#install-app-button'),
   newSessionButton: document.querySelector('#new-session-button'),
   copySessionCodeButton: document.querySelector('#copy-session-code'),
@@ -30,7 +29,6 @@ const ui = {
   heroDescriptionSuffix: document.querySelector('#hero-description-suffix'),
   heroChannel: document.querySelector('#hero-channel'),
   brokerName: document.querySelector('#broker-name'),
-  modeLabel: document.querySelector('#mode-label'),
   externalLink: document.querySelector('#external-link'),
   repoNoteLink: document.querySelector('#repo-note-link'),
   siteVersionNote: document.querySelector('#site-version-note'),
@@ -164,11 +162,6 @@ function applyUiTheme() {
   document.documentElement.style.colorScheme = activeTheme;
   if (ui.uiThemeToggle) {
     ui.uiThemeToggle.textContent = activeTheme === 'dark' ? 'Light Mode' : 'Dark Mode';
-  }
-  if (ui.modeLabel) {
-    ui.modeLabel.textContent = isSharePage()
-      ? (activeTheme === 'dark' ? 'Dark Review Surface' : 'Bright Review Surface')
-      : (activeTheme === 'dark' ? 'Dark Command Surface' : 'Bright Command Surface');
   }
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) {
@@ -474,15 +467,22 @@ function renderSparkline(element, points, tone = 'neutral') {
   if (!element) {
     return;
   }
-  element.innerHTML = '';
-  element.dataset.tone = tone;
   const source = Array.isArray(points) && points.length > 0
     ? points
     : [10, 12, 11, 14, 13, 12, 15, 12];
-  for (const [index, point] of source.entries()) {
+  const normalized = source.map((point) => clamp(point, 8, 100));
+  const signature = `${tone}|${normalized.join(',')}`;
+  if (element.dataset.sparklineSignature === signature) {
+    return;
+  }
+
+  element.innerHTML = '';
+  element.dataset.tone = tone;
+  element.dataset.sparklineSignature = signature;
+  for (const [index, point] of normalized.entries()) {
     const bar = document.createElement('span');
     bar.className = 'sparkline-bar';
-    bar.style.height = `${clamp(point, 8, 100)}%`;
+    bar.style.height = `${point}%`;
     bar.style.animationDelay = `${index * 40}ms`;
     element.appendChild(bar);
   }
@@ -1428,7 +1428,7 @@ function buildDrawerContent() {
                 ${receipts.map((receipt) => `
                   <div class="console-line">
                     <strong>${escapeHtml(receipt.observerLabel)}</strong>
-                    <span>${escapeHtml(formatTime(receipt.firstSeenAt))} · ${escapeHtml(receipt.topic || 'meshcore packet')}</span>
+                    <span>${escapeHtml(formatTime(receipt.firstSeenAt))}</span>
                     <code>${escapeHtml(receipt.messageHash || 'no-hash')}</code>
                     <span>${escapeHtml((receipt.path || []).join(' -> ') || 'No path data')}</span>
                   </div>
@@ -1789,9 +1789,6 @@ if (ui.uiThemeToggle) {
   ui.uiThemeToggle.addEventListener('click', () => {
     state.uiTheme = state.uiTheme === 'dark' ? 'light' : 'dark';
     saveUiTheme();
-    if (ui.actionMenu) {
-      ui.actionMenu.open = false;
-    }
     render();
   });
 }
@@ -1818,9 +1815,6 @@ document.addEventListener('click', (event) => {
   if (!(event.target instanceof Element)) {
     return;
   }
-  if (ui.actionMenu?.open && !event.target.closest('#action-menu')) {
-    ui.actionMenu.open = false;
-  }
   const action = event.target.closest('[data-drawer-action]');
   if (action) {
     event.preventDefault();
@@ -1834,17 +1828,9 @@ document.addEventListener('click', (event) => {
     return;
   }
 
-  const panel = event.target.closest('[data-drawer-panel]');
-  if (panel && !targetIsPanelInteractive(event.target)) {
-    openDrawer(panel.dataset.drawerPanel || '');
-  }
 });
 
 window.addEventListener('keydown', (event) => {
-  if (event.key === 'Escape' && ui.actionMenu?.open) {
-    ui.actionMenu.open = false;
-    return;
-  }
   if (event.key === 'Escape' && state.drawer.kind) {
     closeDrawer();
   }
