@@ -2158,8 +2158,8 @@ app.get('/manifest.webmanifest', (request, response) => {
     scope: '/',
     display: 'standalone',
     display_override: ['standalone', 'minimal-ui'],
-    background_color: '#101512',
-    theme_color: '#101512',
+    background_color: '#07111d',
+    theme_color: '#07111d',
     icons: [
       {
         src: '/logo.png',

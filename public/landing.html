@@ -19,21 +19,32 @@
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#101512">
+    <meta name="theme-color" content="#07111d">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="/landing.css">
   </head>
   <body class="landing-body">
+    <div class="landing-grid" aria-hidden="true"></div>
     <main class="landing-shell">
+      <section class="landing-halo" aria-hidden="true"></section>
+
       <section class="landing-card">
-        <img class="landing-logo" src="/logo.png" alt="Mesh Health Check">
-        <p class="landing-eyebrow" id="landing-eyebrow">Human Verification</p>
-        <h1 class="landing-title" id="landing-title">One quick check before the dashboard.</h1>
+        <div class="landing-brand">
+          <img class="landing-logo" src="/logo.png" alt="Mesh Health Check">
+          <div>
+            <p class="landing-eyebrow" id="landing-eyebrow">Human Verification</p>
+            <h1 class="landing-title" id="landing-title">One quick check before the dashboard.</h1>
+          </div>
+        </div>
+
         <p class="landing-copy" id="landing-copy">
           Complete the Turnstile challenge to open Mesh Health Check and generate
           test codes for <strong>#health-check</strong>.
         </p>
-        <div class="landing-turnstile" id="turnstile-container">Loading verification…</div>
+
+        <div class="landing-turnstile-shell">
+          <div class="landing-turnstile" id="turnstile-container">Loading verification…</div>
+        </div>
         <p class="landing-status" id="landing-status">Preparing challenge…</p>
       </section>
     </main>

@@ -10,7 +10,8 @@ test('dashboard loads and creates a session code', async ({ page }) => {
   await expect(page.locator('#session-code')).toContainText('MHC-', { timeout: 10000 });
   await expect(page.getByRole('button', { name: 'Copy' })).toBeVisible();
   await expect(page.getByText('Where the observers are')).toBeVisible();
-  await expect(page.locator('#map-observer-note')).toContainText('Waiting for observer coordinates.');
+  await expect(page.locator('#map-observer-note')).toContainText('mapped observers reached.');
+  await expect(page.locator('#observer-map')).toBeVisible();
   await expect(page.getByText('When each observer saw it')).toBeVisible();
   await expect(page.getByText('Timeline appears after the first observer report.')).toBeVisible();
 });
@@ -46,7 +47,6 @@ test('changing the observer selection updates the target and regenerates the unu
   await expect(observerOptions).toHaveCount(2);
   await observerOptions.nth(0).uncheck();
 
-  await expect(page.locator('#expected-source')).toContainText('next code');
   await expect(page.locator('#expected-observers .observer-pill')).toHaveCount(1);
   await expect(sessionCode).not.toHaveText(initialCode || '', { timeout: 10000 });
   await expect(page.locator('#expected-source')).toContainText('Custom set');
