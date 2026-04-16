@@ -1,5 +1,22 @@
 # Changes
 
+## v1.2.5
+
+- thank you to @mitchellmoss for the new web UI design that drove this release
+- redesigned the dashboard, shared-result page, and landing flow into the new
+  control-center UI with the new hero, command, and glance layout
+- carried the repeater count feature from `v1.2.4` into the redesigned health
+  score cards on both the live dashboard and shared-result view
+- updated the shared-result experience to mirror the redesigned dashboard
+  instead of using the older score-shell presentation
+
+## v1.2.4
+
+- added a repeater count metric to the health card by extracting unique relay
+  hops from matched receipt paths
+- exposed the repeater total in both the main dashboard and shared-result
+  score cards
+
 ## v1.2.3
 
 - fixed receipt-path handling so the app preserves and displays 2-byte and

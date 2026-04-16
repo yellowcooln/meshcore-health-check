@@ -75,7 +75,7 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
 
   const payload = await response.json();
   assert.equal(payload.site.title, 'Boston MeshCore Observer Coverage');
-  assert.equal(payload.site.version, '1.2.3');
+  assert.equal(payload.site.version, '1.2.5');
   assert.equal(payload.testChannel.name, 'health-check');
   assert.equal(payload.testChannel.hash, '99');
   assert.equal(payload.turnstile.enabled, false);
@@ -261,6 +261,7 @@ test('fixture packet ingest matches sessions for 3-byte path hashes', async () =
   assert.equal(session.messageHash, 'AB12CD34EF56AB78');
   assert.equal(session.sender, 'Packet Tester');
   assert.equal(session.messageBody, message);
+  assert.equal(session.repeaterCount, 3);
   assert.deepEqual(session.receipts[0].path.slice(0, 3), ['3FA002', '860CCA', 'E0EED9']);
   assert.equal(session.receipts[0].path.at(-1), 'AF07FC');
 });
@@ -299,6 +300,7 @@ test('fixture packet ingest matches sessions for 2-byte path hashes', async () =
   assert.equal(session.messageHash, '11223344AABBCCDD');
   assert.equal(session.sender, 'Packet Tester');
   assert.equal(session.messageBody, message);
+  assert.equal(session.repeaterCount, 3);
   assert.deepEqual(session.receipts[0].path.slice(0, 3), ['3FA0', '860C', 'E0EE']);
   assert.equal(session.receipts[0].path.at(-1), 'AF07');
 });

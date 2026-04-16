@@ -1598,6 +1598,16 @@ function serializeSession(session, request = null) {
     ? allReports.filter((report) => expected.includes(normalizeKey(report.observerKey)))
     : allReports;
   const seen = dedupe(reports.map((report) => normalizeKey(report.observerKey)));
+  const repeaters = dedupe(
+    reports.flatMap((report) =>
+      Array.isArray(report.path)
+        ? report.path
+          .slice(0, Math.max(0, report.path.length - 1))
+          .map(normalizePathHop)
+          .filter(Boolean)
+        : []
+    ),
+  );
   const denominator = Math.max(1, expected.length, seen.length);
   const percent = Math.round((seen.length / denominator) * 100);
 
@@ -1620,6 +1630,7 @@ function serializeSession(session, request = null) {
     channelHash: session.channelHash,
     channelName: session.channelName,
     observedCount: seen.length,
+    repeaterCount: repeaters.length,
     expectedCount: denominator,
     healthPercent: percent,
     healthLabel: healthLabel(percent),
@@ -2147,8 +2158,8 @@ app.get('/manifest.webmanifest', (request, response) => {
     scope: '/',
     display: 'standalone',
     display_override: ['standalone', 'minimal-ui'],
-    background_color: '#101512',
-    theme_color: '#101512',
+    background_color: '#07111d',
+    theme_color: '#07111d',
     icons: [
       {
         src: '/logo.png',

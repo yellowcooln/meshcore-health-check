@@ -19,198 +19,326 @@
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#101512">
+    <meta name="theme-color" content="#07111d">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
     <link rel="stylesheet" href="/styles.css">
   </head>
-  <body data-page-mode="share">
-    <main class="shell">
-      <section class="hero">
-        <div class="hero-copy">
-          <p class="eyebrow" id="hero-eyebrow">Shared Result</p>
-          <h1 id="hero-title">Observer coverage someone shared with you.</h1>
-          <p class="lede">
-            <span id="hero-description-prefix">This page is read-only. Review the result from</span>
-            <strong id="hero-channel">#health-check</strong>
-            <span id="hero-description-suffix">or open the full dashboard to run your own check.</span>
-          </p>
+  <body class="noc-body" data-page-mode="share" data-ui-theme="dark">
+    <div class="screen-glow" aria-hidden="true"></div>
+    <main class="noc-shell">
+      <section class="workspace">
+        <div class="splash-scene" aria-hidden="true">
+          <span class="splash-scene__mesh"></span>
+          <span class="splash-scene__beam"></span>
+          <span class="splash-scene__grid"></span>
+          <span class="splash-scene__ring splash-scene__ring--left"></span>
+          <span class="splash-scene__ring splash-scene__ring--right"></span>
+          <span class="splash-scene__badge splash-scene__badge--one">Retained session</span>
+          <span class="splash-scene__badge splash-scene__badge--two">Shared briefing</span>
         </div>
-        <div class="hero-card share-hero-card" id="session-card">
-          <div class="hero-topline">
-            <span class="pill" id="mqtt-pill">Shared Link</span>
-            <div class="hero-actions">
-              <button class="ghost-button hidden" id="install-app-button" type="button">
-                Install App
-              </button>
-              <a class="ghost-button hidden" href="#" id="external-link" rel="noopener noreferrer" target="_blank">External Link</a>
-              <a class="ghost-button" href="/app" id="start-own-check-link">Run Your Own Check</a>
-              <button class="ghost-button hidden" id="new-session-button" type="button">
-                New Code
-              </button>
+        <section class="hero-stage">
+          <article class="hero-panel hero-stage__lead">
+            <div class="dock-brand">
+              <div class="brand-orb" aria-hidden="true">
+                <img alt="" src="/logo.png">
+              </div>
+              <div class="brand-copy">
+                <p class="eyebrow" id="hero-eyebrow">Shared Result</p>
+                <h1 id="hero-title">Observer coverage someone shared with you.</h1>
+              </div>
             </div>
-          </div>
-          <div class="session-code-row">
-            <div class="session-code" id="session-code">...</div>
-            <div class="session-code-actions">
-              <button class="ghost-button copy-button" id="copy-session-code" type="button">
-                Copy
-              </button>
-              <button class="ghost-button copy-button" id="share-session" type="button">
-                Share
-              </button>
-            </div>
-          </div>
-          <p class="session-instructions" id="session-instructions">
-            Loading shared result…
-          </p>
-          <p class="small-note session-share-note" id="session-share-note">
-            Shared links are kept for one week by default.
-          </p>
-          <div class="session-meta">
-            <div>
-              <span class="meta-label">Status</span>
-              <strong id="session-status">Waiting</strong>
-            </div>
-            <div>
-              <span class="meta-label">Message Hash</span>
-              <strong><a class="hash-link pending" id="session-hash" href="#" rel="noopener noreferrer" target="_blank">Pending</a></strong>
-            </div>
-          </div>
-        </div>
-      </section>
 
-      <section class="dashboard">
-        <article class="panel score-panel">
-          <div class="panel-header">
-            <div>
-              <p class="panel-label">Shared Health</p>
-              <h2 id="health-label">Waiting</h2>
-            </div>
-            <div class="score-ring">
-              <svg class="score-ring__svg" viewBox="0 0 120 120" aria-hidden="true">
-                <circle class="score-ring__track" cx="60" cy="60" r="50"/>
-                <circle class="score-ring__fill" cx="60" cy="60" r="50"/>
-              </svg>
-              <span id="health-percent"><span class="score-num">0</span><span class="score-unit">%</span></span>
-            </div>
-          </div>
-          <div class="score-grid">
-            <div class="metric-card">
-              <span class="metric-label">Observers Reached</span>
-              <strong id="observed-count">0 / 0</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Sender</span>
-              <strong id="sender-name">Pending</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Channel</span>
-              <strong id="channel-name">#health-check</strong>
-            </div>
-            <div class="metric-card">
-              <span class="metric-label">Broker</span>
-              <strong id="broker-name">Loading</strong>
-            </div>
-          </div>
-          <div class="message-preview">
-            <span class="meta-label">Matched Message</span>
-            <p id="message-preview">Waiting for a shared result.</p>
-          </div>
-        </article>
+            <p class="dock-lede lede">
+              <span id="hero-description-prefix">This page is read-only. Review the result from</span>
+              <strong id="hero-channel">#health-check</strong>
+              <span id="hero-description-suffix">or open the full dashboard to run your own check.</span>
+            </p>
 
-        <article class="panel share-hidden">
-          <div class="panel-header slim">
-            <div>
-              <p class="panel-label">Observer Set</p>
-              <h2>Observers</h2>
+            <div class="hero-stage__pulse">
+              <span class="hero-stage__pulse-dot" aria-hidden="true"></span>
+              <div>
+                <p class="panel-label">Shared Surface</p>
+                <p class="small-note">A retained session rendered as one continuous briefing, with the map and trace detail still in reach.</p>
+              </div>
             </div>
-            <button class="ghost-button" id="observer-allowlist-clear" type="button">
-              Default Set
-            </button>
-          </div>
-          <p class="small-note allowlist-note" id="observer-allowlist-note">
-            Default: 0 observers.
-          </p>
-          <div class="observer-selector" id="observer-allowlist"></div>
-          <div class="panel-divider"></div>
-          <div class="panel-header slim">
-            <div>
-              <p class="panel-label">Target</p>
-              <h2>Score Against</h2>
-            </div>
-            <p class="small-note" id="expected-source">Default</p>
-          </div>
-          <div class="observer-badges" id="expected-observers"></div>
-        </article>
 
-        <article class="panel wide">
-          <div class="panel-header slim">
-            <div>
-              <p class="panel-label">Coverage Map</p>
-              <h2>Where the observers are</h2>
-            </div>
-            <button class="ghost-button" id="map-theme-toggle" type="button">
-              Light Map
-            </button>
-          </div>
-          <p class="small-note" id="map-observer-note">Waiting for observer coordinates.</p>
-          <div class="empty-state compact hidden" id="map-empty">
-            No saved observer coordinates yet. The app will learn them from MQTT metadata and store them in <code>observer.json</code>.
-          </div>
-          <div class="observer-map" id="observer-map"></div>
-        </article>
+          </article>
 
-        <article class="panel wide">
-          <div class="panel-header slim">
-            <div>
-              <p class="panel-label">Observer Reports</p>
-              <h2>Who saw the message</h2>
+          <article class="hero-panel hero-stage__brief">
+            <div class="control-center-head">
+              <div class="toolbar-copy">
+                <p class="toolbar-label">Shared Control Center</p>
+                <div>
+                  <h2>Health at a glance</h2>
+                  <p>Review the retained session, inspect technical traces, and step into a fresh live check only when you need it.</p>
+                </div>
+              </div>
+
+              <div class="control-utility-actions">
+                <button class="control-button ghost-button" id="ui-theme-toggle" type="button">
+                  Light Mode
+                </button>
+                <button class="control-button ghost-button hidden" id="install-app-button" type="button">
+                  Install App
+                </button>
+                <a class="control-button ghost-button hidden" href="#" id="external-link" rel="noopener noreferrer" target="_blank">External Link</a>
+                <a class="control-button primary-button" href="/app" id="start-own-check-link">Run Your Own Check</a>
+                <button class="control-button primary-button hidden" id="new-session-button" type="button">
+                  New Code
+                </button>
+              </div>
             </div>
-            <p class="small-note" id="active-observer-note">0 active observers</p>
-          </div>
-          <div class="timeline-block">
+
+            <div class="dock-status-stack">
+              <span class="pill status-pill" id="mqtt-pill">Shared Link</span>
+              <div class="dock-note">
+                <span class="meta-label">Share Mode</span>
+                <strong id="network-window">Read-only diagnostics</strong>
+              </div>
+            </div>
+
+          </article>
+
+          <section class="glance-grid telemetry-strip" id="health-at-a-glance">
+            <article class="glance-card telemetry-strip__item">
+            <div class="glance-card__head">
+              <span class="panel-label">Transport</span>
+            </div>
+            <strong class="glance-card__value" id="network-state">Shared</strong>
+            <div class="sparkline" id="observer-sparkline" aria-hidden="true"></div>
+            <p class="small-note" id="observer-density-label">Awaiting observer directory.</p>
+            </article>
+
+            <article class="glance-card telemetry-strip__item">
+            <div class="glance-card__head">
+              <span class="panel-label">Mapped Nodes</span>
+            </div>
+            <strong class="glance-card__value" id="observer-density">0 / 0</strong>
+            <div class="sparkline" id="observer-load-sparkline" aria-hidden="true"></div>
+            <p class="small-note" id="observer-density-detail">No observer telemetry yet.</p>
+            </article>
+
+            <article class="glance-card telemetry-strip__item">
+            <div class="glance-card__head">
+              <span class="panel-label">Signal Quality</span>
+            </div>
+            <strong class="glance-card__value" id="signal-quality">--</strong>
+            <div class="sparkline" id="signal-sparkline" aria-hidden="true"></div>
+            <p class="small-note" id="signal-quality-label">Awaiting telemetry.</p>
+            </article>
+
+            <article class="glance-card telemetry-strip__item">
+            <div class="glance-card__head">
+              <span class="panel-label">Receipt Spread</span>
+            </div>
+            <strong class="glance-card__value" id="latency-score">--</strong>
+            <div class="sparkline" id="latency-sparkline" aria-hidden="true"></div>
+            <p class="small-note" id="latency-label">Awaiting receipt spread.</p>
+            </article>
+          </section>
+        </section>
+
+        <section class="command-grid">
+          <article class="panel command-panel marquee-panel share-hero-card" id="command-center">
+            <div class="panel-header">
+              <div>
+                <p class="panel-label">Retained Session</p>
+                <h2>Shared Control</h2>
+              </div>
+            </div>
+
+            <div class="marquee-layout">
+              <div class="session-sequence">
+                <div class="session-code-row">
+                  <div class="session-code-block">
+                    <span class="meta-label">Shared Code</span>
+                    <div class="session-code" id="session-code">...</div>
+                  </div>
+                  <div class="session-code-actions">
+                    <button class="control-button ghost-button copy-button" id="copy-session-code" type="button">
+                      Copy
+                    </button>
+                    <button class="control-button ghost-button copy-button" id="share-session" type="button">
+                      Share
+                    </button>
+                  </div>
+                </div>
+                <p class="session-instructions" id="session-instructions">
+                  Loading shared result…
+                </p>
+                <p class="small-note session-share-note" id="session-share-note">
+                  Shared links are kept for one week by default.
+                </p>
+                <div class="session-meta">
+                  <div class="metric-card compact">
+                    <span class="meta-label">Status</span>
+                    <strong id="session-status">Waiting</strong>
+                  </div>
+                  <div class="metric-card compact">
+                    <span class="meta-label">Message Hash</span>
+                    <strong><a class="hash-link pending" id="session-hash" href="#" rel="noopener noreferrer" target="_blank">Pending</a></strong>
+                  </div>
+                </div>
+              </div>
+
+              <section class="health-pocket">
+                <div class="health-pocket__head">
+                  <div>
+                    <p class="panel-label">Shared Health</p>
+                    <h2 id="health-label">Waiting</h2>
+                  </div>
+                </div>
+
+                <div class="health-pocket__content">
+                  <div class="score-ring">
+                    <svg class="score-ring__svg" viewBox="0 0 120 120" aria-hidden="true">
+                      <circle class="score-ring__track" cx="60" cy="60" r="50"></circle>
+                      <circle class="score-ring__fill" cx="60" cy="60" r="50"></circle>
+                    </svg>
+                    <span id="health-percent"><span class="score-num">0</span><span class="score-unit">%</span></span>
+                  </div>
+
+                  <div class="score-grid health-pocket__stats">
+                    <div class="metric-card">
+                      <span class="metric-label">Observers Reached</span>
+                      <strong id="observed-count">0 / 0</strong>
+                    </div>
+                    <div class="metric-card">
+                      <span class="metric-label">Sender</span>
+                      <strong id="sender-name">Pending</strong>
+                    </div>
+                    <div class="metric-card">
+                      <span class="metric-label">Repeaters</span>
+                      <strong id="repeater-count">0</strong>
+                    </div>
+                    <div class="metric-card">
+                      <span class="metric-label">Channel</span>
+                      <strong id="channel-name">#health-check</strong>
+                    </div>
+                    <div class="metric-card">
+                      <span class="metric-label">Broker</span>
+                      <strong id="broker-name">Loading</strong>
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+
+            <div class="message-preview">
+              <span class="meta-label">Matched Message</span>
+              <p id="message-preview">Waiting for a shared result.</p>
+            </div>
+          </article>
+        </section>
+
+        <section class="dashboard-grid">
+          <article class="panel map-panel spotlight-panel" id="coverage-map">
             <div class="panel-header slim">
               <div>
-                <p class="panel-label">Timeline</p>
-                <h3>When each observer saw it</h3>
+                <p class="panel-label">Coverage Map</p>
+                <h2>Where the observers are</h2>
               </div>
-              <p class="small-note" id="timeline-summary">Waiting for observer reports</p>
             </div>
-            <div class="timeline-scale hidden" id="timeline-scale">
-              <span id="timeline-start-label">First receipt</span>
-              <span id="timeline-end-label">Latest receipt</span>
+            <p class="small-note" id="map-observer-note">Waiting for observer coordinates.</p>
+            <div class="empty-state compact hidden" id="map-empty">
+              No saved observer coordinates yet. The app will learn them from MQTT metadata and store them in <code>observer.json</code>.
             </div>
-            <div class="empty-state compact" id="receipt-timeline-empty">
-              Timeline appears after the first observer report.
-            </div>
-            <div class="receipt-timeline" id="receipt-timeline"></div>
-          </div>
-          <div class="empty-state" id="receipts-empty">
-            No observer reports yet.
-          </div>
-          <div class="receipts" id="receipts"></div>
-        </article>
+            <div class="observer-map" id="observer-map"></div>
+          </article>
 
-        <article class="panel wide share-hidden">
-          <div class="panel-header slim">
-            <div>
-              <p class="panel-label">Recent Sessions</p>
-              <h2>Previous checks</h2>
+          <article class="panel observer-panel share-hidden" id="observer-targets">
+            <div class="panel-header slim">
+              <div>
+                <p class="panel-label">Observer Set</p>
+                <h2>Observers</h2>
+              </div>
+              <div class="panel-actions">
+                <button class="ghost-button" id="observer-allowlist-clear" type="button">
+                  Default Set
+                </button>
+              </div>
             </div>
-          </div>
-          <div class="history-list" id="session-history"></div>
-        </article>
+            <p class="small-note allowlist-note" id="observer-allowlist-note">
+              Default: 0 observers.
+            </p>
+            <div class="observer-selector" id="observer-allowlist"></div>
+            <div class="panel-divider"></div>
+            <div class="panel-header slim">
+              <div>
+                <p class="panel-label">Target</p>
+                <h2>Score Against</h2>
+              </div>
+              <p class="small-note" id="expected-source">Default</p>
+            </div>
+            <div class="observer-badges" id="expected-observers"></div>
+          </article>
+
+          <article class="panel reports-panel ledger-panel" id="observer-reports">
+            <div class="panel-header slim">
+              <div>
+                <p class="panel-label">Observer Reports</p>
+                <h2>Who saw the message</h2>
+              </div>
+              <div class="panel-actions">
+                <p class="small-note" id="active-observer-note">0 active observers</p>
+              </div>
+            </div>
+            <div class="timeline-block">
+              <div class="panel-header slim">
+                <div>
+                  <p class="panel-label">Timeline</p>
+                  <h3>When each observer saw it</h3>
+                </div>
+                <p class="small-note" id="timeline-summary">Waiting for observer reports</p>
+              </div>
+              <div class="timeline-scale hidden" id="timeline-scale">
+                <span id="timeline-start-label">First receipt</span>
+                <span id="timeline-end-label">Latest receipt</span>
+              </div>
+              <div class="empty-state compact" id="receipt-timeline-empty">
+                Timeline appears after the first observer report.
+              </div>
+              <div class="receipt-timeline" id="receipt-timeline"></div>
+            </div>
+            <div class="empty-state" id="receipts-empty">
+              No observer reports yet.
+            </div>
+            <div class="receipts" id="receipts"></div>
+
+            <div class="ledger-divider share-hidden" aria-hidden="true"></div>
+            <div class="panel-header slim ledger-history-head share-hidden">
+              <div>
+                <p class="panel-label">Recent Sessions</p>
+                <h2>Previous checks</h2>
+              </div>
+            </div>
+            <div class="history-list" id="session-history"></div>
+          </article>
+        </section>
+
+        <footer class="site-footer">
+          <p class="small-note">
+            <a href="https://github.com/yellowcooln/meshcore-health-check/blob/main/CHANGES.md" id="site-version-note" rel="noopener noreferrer" target="_blank">Version: v0.0.0</a>
+            <span aria-hidden="true"> · </span>
+            Source:
+            <a href="https://github.com/yellowcooln/meshcore-health-check" id="repo-note-link" rel="noopener noreferrer" target="_blank">yellowcooln/meshcore-health-check</a>
+          </p>
+        </footer>
       </section>
-      <footer class="site-footer">
-        <p class="small-note">
-          <a href="https://github.com/yellowcooln/meshcore-health-check/blob/main/CHANGES.md" id="site-version-note" rel="noopener noreferrer" target="_blank">Version: v0.0.0</a>
-          <span aria-hidden="true"> · </span>
-          Source:
-          <a href="https://github.com/yellowcooln/meshcore-health-check" id="repo-note-link" rel="noopener noreferrer" target="_blank">yellowcooln/meshcore-health-check</a>
-        </p>
-      </footer>
     </main>
+
+    <div class="drawer-scrim" id="drawer-scrim" aria-hidden="true"></div>
+    <aside class="detail-drawer" id="detail-drawer" aria-hidden="true">
+      <div class="drawer-head">
+        <div>
+          <p class="panel-label" id="drawer-meta">Deep Dive</p>
+          <h2 id="drawer-title">Session Diagnostics</h2>
+        </div>
+        <button class="drawer-close ghost-button" id="drawer-close" type="button">Close</button>
+      </div>
+      <div class="drawer-body" id="drawer-body"></div>
+    </aside>
 
     <script src="/vendor/leaflet/leaflet.js" defer></script>
     <script type="module" src="/app.js"></script>
