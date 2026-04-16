@@ -794,14 +794,33 @@ body[data-page-mode="share"] .status-pill::before {
 
 .observer-panel {
   grid-area: observers;
+  display: grid;
+  align-content: start;
+  gap: 16px;
 }
 
 .observer-panel .panel-header.slim {
   align-items: flex-start;
+  row-gap: 10px;
 }
 
 .observer-panel .panel-actions {
   justify-content: flex-start;
+}
+
+.observer-panel .panel-header > div {
+  display: grid;
+  gap: 6px;
+}
+
+.observer-panel .allowlist-note,
+.observer-panel #expected-source {
+  margin: -2px 0 0;
+}
+
+.observer-panel .observer-selector,
+.observer-panel .observer-badges {
+  margin-top: 2px;
 }
 
 .reports-panel {
@@ -829,6 +848,10 @@ body[data-page-mode="share"] .status-pill::before {
   height: 1px;
   margin: 18px 0;
   background: linear-gradient(90deg, transparent, rgba(194, 245, 255, 0.22), transparent);
+}
+
+.observer-panel .panel-divider {
+  margin: 6px 0 2px;
 }
 
 .session-code-row {
