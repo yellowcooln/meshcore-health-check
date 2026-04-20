@@ -1080,6 +1080,80 @@ body[data-page-mode="share"] .hero-stage__brief .control-utility-actions a {
   white-space: pre-wrap;
 }
 
+.region-filter {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.region-filter__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.region-filter__row--subregions {
+  padding: 8px 0 0 10px;
+  border-left: 2px solid rgba(230, 182, 74, 0.28);
+}
+
+.region-btn {
+  appearance: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.2;
+  padding: 5px 12px;
+  transition: background 150ms, border-color 150ms, color 150ms;
+}
+
+.region-btn--group {
+  font-size: 0.82rem;
+}
+
+.region-btn--child {
+  font-size: 0.75rem;
+  padding: 4px 10px;
+}
+
+.region-btn__count {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.68rem;
+  font-weight: 700;
+  line-height: 1;
+  min-width: 1.45em;
+  opacity: 0.8;
+  padding: 3px 5px;
+  text-align: center;
+}
+
+.region-btn:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text);
+}
+
+.region-btn.active {
+  background: rgba(111, 217, 106, 0.08);
+  border-color: rgba(111, 217, 106, 0.4);
+  color: var(--good);
+}
+
+.region-btn.active .region-btn__count {
+  background: rgba(111, 217, 106, 0.14);
+  color: var(--good);
+}
+
 .observer-panel {
   display: grid;
   align-content: start;
