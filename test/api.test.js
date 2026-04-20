@@ -75,7 +75,7 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
 
   const payload = await response.json();
   assert.equal(payload.site.title, 'Boston MeshCore Observer Coverage');
-  assert.equal(payload.site.version, '1.2.5');
+  assert.equal(payload.site.version, '1.3.0');
   assert.equal(payload.testChannel.name, 'health-check');
   assert.equal(payload.testChannel.hash, '99');
   assert.equal(payload.turnstile.enabled, false);

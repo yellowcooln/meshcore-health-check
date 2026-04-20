@@ -2,6 +2,8 @@
 
 ## v1.3.0
 
+- thank you to @gadgethd for PR #14, which added the region-based observer
+  filtering foundation for this release
 - added server-side observer region detection from configurable GeoJSON
   boundary files so observers with saved coordinates can be assigned to named
   regions and optional parent groups
@@ -18,6 +20,8 @@
   property still render usable region buttons
 - added region hierarchy test coverage for both grouped and flat region
   boundary files
+- fixed the "Who saw the message" receipt timeline so the last observer marker
+  stays inside the track instead of rendering half off-screen
 
 ## v1.2.5
 
