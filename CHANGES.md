@@ -1,5 +1,28 @@
 # Changes
 
+## v1.3.0
+
+- thank you to @gadgethd for PR #14, which added the region-based observer
+  filtering foundation for this release
+- added server-side observer region detection from configurable GeoJSON
+  boundary files so observers with saved coordinates can be assigned to named
+  regions and optional parent groups
+- added grouped region-filter controls above the observer selector so users can
+  target an entire division such as `New England` or drill into a child region
+  such as `Massachusetts`
+- added bundled region boundary files for the UK, US states, US Census places,
+  Germany, Australia, Canada, and France
+- added the new region env vars:
+  `REGIONS_FILE`, `REGION_NAME_PROPERTY`, and `REGION_GROUP_PROPERTY`
+- added Docker image support for bundled region files so region detection works
+  in container deployments, not just local source checkouts
+- added flat/no-group fallback handling so custom GeoJSON files without a group
+  property still render usable region buttons
+- added region hierarchy test coverage for both grouped and flat region
+  boundary files
+- fixed the "Who saw the message" receipt timeline so the last observer marker
+  stays inside the track instead of rendering half off-screen
+
 ## v1.2.5
 
 - thank you to @mitchellmoss for the new web UI design that drove this release

@@ -36,6 +36,9 @@ cp .env.example .env
 - set `OBSERVER_RETENTION_SECONDS` if old observers should disappear from the
   dashboard directory and map after a chosen age
   Set it to `0` to disable pruning and keep known observers visible.
+- set `REGIONS_FILE` if you want region buttons above the observer selector
+- leave `REGION_NAME_PROPERTY=name` and `REGION_GROUP_PROPERTY=group` when
+  using the bundled region files
 - set `DASH_BROKER_HOST` if the UI should show a public broker label instead of
   the internal Docker or LAN broker hostname
 - enable Turnstile if the site is internet-facing
@@ -68,6 +71,8 @@ Users can either:
 
 - use the default observer set from `KNOWN_OBSERVERS`
 - pick a custom observer set in the browser for the next code only
+- use region filters, when configured, to target an entire region group or a
+  specific child region without manually checking observers one by one
 
 ## Result Meaning
 
@@ -98,6 +103,28 @@ metadata propagates. Observers without coordinates still work for scoring, but
 they will not appear on the map until MQTT metadata or a saved profile provides
 `lat` and `lon`.
 
+## Region Filters
+
+If you set `REGIONS_FILE`, the server loads the GeoJSON boundary file at
+startup and assigns each observer with known coordinates to a `region` and
+optional `regionGroup`.
+
+Bundled examples include:
+
+- `regions/us-states.geojson` for grouped US state filtering such as
+  `New England -> Massachusetts`
+- `regions/us-places.geojson` for city/place-level US filtering
+- `regions/uk.geojson` for UK regional filtering
+
+The related env vars are:
+
+- `REGIONS_FILE`
+- `REGION_NAME_PROPERTY`
+- `REGION_GROUP_PROPERTY`
+
+If the GeoJSON has no usable group property, the UI falls back to a flat region
+button list instead of a two-level grouped selector.
+
 ## Why Turnstile Is Highly Recommended
 
 If the site is public, bots can create codes just like real users. Rate limits
@@ -119,6 +146,7 @@ optional. If the site is public, it should be enabled.
   still connects to `MQTT_HOST` or `MQTT_URL`.
 - Default observer scoring comes from `KNOWN_OBSERVERS` if set, otherwise from
   the active observer window.
+- Region filters only work for observers with known coordinates.
 - Observers that have not been heard from within `OBSERVER_RETENTION_SECONDS`
   are omitted from the dashboard directory and map.
 - `data/` is bind-mounted so learned observer names and retained share links
