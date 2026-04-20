@@ -10,6 +10,7 @@ RUN npm install --omit=dev --no-audit --fund=false
 COPY server.js ./
 COPY lib ./lib
 COPY public ./public
+COPY regions ./regions
 COPY README.md HOWTO.md AGENTS.md CHANGES.md ./
 
 ENV NODE_ENV=production
