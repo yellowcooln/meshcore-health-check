@@ -1413,6 +1413,7 @@ function renderReceiptTimeline(session) {
   for (const receipt of receipts) {
     const delta = Math.max(0, receipt.firstSeenAt - firstSeenAt);
     const position = spread > 0 ? (delta / spread) * 100 : 0;
+    const clampedDotPosition = Math.min(99, Math.max(1, position));
     const row = document.createElement('article');
     row.className = 'timeline-row';
     row.innerHTML = `
@@ -1422,7 +1423,7 @@ function renderReceiptTimeline(session) {
       </div>
       <div class="timeline-track">
         <span class="timeline-fill" style="width: ${position}%;"></span>
-        <span class="timeline-dot" style="left: ${position}%;"></span>
+        <span class="timeline-dot" style="left: ${clampedDotPosition}%;"></span>
       </div>
     `;
     ui.receiptTimeline.appendChild(row);

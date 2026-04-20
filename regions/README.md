@@ -19,7 +19,7 @@ filter, then `name` for the deeper region filter.
 ## Usage
 
 ```env
-REGIONS_FILE=regions/uk.geojson
+REGIONS_FILE=regions/us-states.geojson
 # Optional when using your own GeoJSON:
 REGION_NAME_PROPERTY=name
 REGION_GROUP_PROPERTY=group

@@ -22,6 +22,8 @@ Other community Health Checks:
 - observer-by-observer receipt tracking with path, RSSI, SNR, and duration data
 - observer timeline view showing when each observer first saw the message
 - observer coverage map with dark/light basemap toggle
+- optional region-based observer filtering using configurable GeoJSON boundary
+  files and grouped hierarchies such as `New England -> Massachusetts`
 - shareable result links backed by retained server-side session storage
 - installable browser app support via manifest + service worker
 - default observer target sets plus browser-side custom observer selection
@@ -91,6 +93,8 @@ Key groups:
 - Observers:
   `OBSERVERS_FILE`, `RESULTS_FILE`, `KNOWN_OBSERVERS`,
   `OBSERVER_ACTIVE_WINDOW_SECONDS`, `OBSERVER_RETENTION_SECONDS`
+- Regions:
+  `REGIONS_FILE`, `REGION_NAME_PROPERTY`, `REGION_GROUP_PROPERTY`
 - Turnstile:
   `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`,
   `TURNSTILE_API_URL`, `TURNSTILE_COOKIE_NAME`,
@@ -114,6 +118,13 @@ Important behavior:
 - `data/session-results.json` retains shareable result data for the configured
   retention window and is pruned automatically after expiry.
 - The dashboard map only plots observers that have saved coordinates.
+- If `REGIONS_FILE` is set, observers with saved coordinates are assigned to
+  regions at startup and the observer panel exposes region filter buttons.
+- `REGION_NAME_PROPERTY` selects the feature property that becomes the
+  selectable child region label.
+- `REGION_GROUP_PROPERTY` selects the feature property that becomes the parent
+  group label. If your GeoJSON has no usable group property, the UI falls back
+  to a flat region button list.
 - `DASH_BROKER_HOST` only changes the broker label shown in the dashboard. It
   does not change the actual MQTT connection target.
 - Result links use `/share/:sessionId` and remain available until the retained
@@ -145,6 +156,9 @@ If Turnstile is enabled:
 
 - The message hash in the active session card links directly to the packet
   analyzer when a hash is available.
+- When region detection is enabled, the observer panel can target either a
+  parent region group or a child region, and that selection feeds directly
+  into the next generated code's observer target set.
 - By default, the coverage map plots the current observer directory. Custom
   deployments can set `data-map-observer-scope="expected"` on the page `<body>`
   to plot only the observer set used for the active session score.
