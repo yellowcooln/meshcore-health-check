@@ -28,8 +28,8 @@ Other community Health Checks:
 - installable browser app support via manifest + service worker
 - default observer target sets plus browser-side custom observer selection
 - persistent observer profiles through
-  [observer.json](/home/yellowcooln/mesh-health-check/observer.json)
-- MQTT-learned observer locations saved back into `observer.json`
+  [data/observer.json](/home/yellowcooln/mesh-health-check/data/observer.json)
+- MQTT-learned observer locations saved back into `data/observer.json`
 - Cloudflare Turnstile landing page for bot protection
 - optional external hero link driven by env
 - Docker-first deployment behind Nginx or Cloudflare
