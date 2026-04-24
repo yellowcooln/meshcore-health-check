@@ -26,6 +26,7 @@ import {
 } from './lib/mesh-health-core.js';
 
 const APP_DIR = path.dirname(fileURLToPath(import.meta.url));
+const APP_DATA_DIR = path.join(APP_DIR, 'data');
 const require = createRequire(import.meta.url);
 const {
   MeshCorePacketDecoder,
@@ -284,12 +285,12 @@ const MQTT_URL = buildMqttUrl();
 const MQTT_TOPICS = dedupe(envList('MQTT_TOPIC').length > 0
   ? envList('MQTT_TOPIC')
   : ['meshcore/BOS/#']);
-const OBSERVERS_FILE = envValue('OBSERVERS_FILE', 'observer.json');
+const OBSERVERS_FILE = envValue('OBSERVERS_FILE', path.join('data', 'observer.json'));
 const OBSERVERS_FILE_PATH = resolveAppPath(OBSERVERS_FILE);
 const REGIONS_FILE = envValue('REGIONS_FILE', '');
 const REGION_NAME_PROPERTY = envValue('REGION_NAME_PROPERTY', 'name');
 const REGION_GROUP_PROPERTY = envValue('REGION_GROUP_PROPERTY', 'group');
-const RESULTS_FILE = envValue('RESULTS_FILE', 'session-results.json');
+const RESULTS_FILE = envValue('RESULTS_FILE', path.join('data', 'session-results.json'));
 const RESULTS_FILE_PATH = resolveAppPath(RESULTS_FILE);
 const APP_TITLE = envValue('APP_TITLE', 'Mesh Health Check');
 const APP_EYEBROW = envValue('APP_EYEBROW', 'MeshCore Observer Coverage');
@@ -2701,7 +2702,7 @@ export function ingestMqttMessage(topic, payload) {
   }
 }
 
-export { app, server };
+export { app, server, APP_DATA_DIR, OBSERVERS_FILE_PATH, RESULTS_FILE_PATH };
 
 if (IS_MAIN_MODULE && !DISABLE_RUNTIME) {
   startRuntime();
