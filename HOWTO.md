@@ -17,6 +17,7 @@ summarizes observer coverage.
 - a valid MeshCore channel name and secret
 - optional observer name mappings in
   [data/observer.json](/home/yellowcooln/mesh-health-check/data/observer.json)
+- writable observer activity history in `data/observer-activity.json`
 - writable retained results storage in `data/session-results.json`
 
 ## Setup
@@ -33,6 +34,12 @@ cp .env.example .env
 - set `TEST_CHANNEL_NAME`
 - set `TEST_CHANNEL_SECRET`
 - set `KNOWN_OBSERVERS` if you want a fixed default scoring set
+- leave `KNOWN_OBSERVERS` blank if you want the app to auto-select the top
+  recent observers from packet history
+- adjust `OBSERVER_TOP_WINDOW_DAYS` and `OBSERVER_TOP_COUNT` if the dynamic
+  default set should use a different lookback window or size
+- set `OBSERVER_HASH_DISPLAY_BYTES` if you want observer hash prefixes shown as
+  1-byte, 2-byte, or 3-byte identifiers in the UI
 - set `OBSERVER_RETENTION_SECONDS` if old observers should disappear from the
   dashboard directory and map after a chosen age
   Set it to `0` to disable pruning and keep known observers visible.
@@ -70,6 +77,8 @@ docker compose up -d --build
 Users can either:
 
 - use the default observer set from `KNOWN_OBSERVERS`
+- leave `KNOWN_OBSERVERS` blank and let the app auto-target the top recent
+  observers it has seen on the mesh
 - pick a custom observer set in the browser for the next code only
 - use region filters, when configured, to target an entire region group or a
   specific child region without manually checking observers one by one
@@ -145,7 +154,11 @@ optional. If the site is public, it should be enabled.
 - `DASH_BROKER_HOST` affects only the dashboard label shown to users. MQTT
   still connects to `MQTT_HOST` or `MQTT_URL`.
 - Default observer scoring comes from `KNOWN_OBSERVERS` if set, otherwise from
-  the active observer window.
+- the rolling top-observer history over `OBSERVER_TOP_WINDOW_DAYS`, and only
+  falls back to the active observer window if there is no history yet.
+- The dynamic top-observer ranking is stored in `data/observer-activity.json`.
+- `OBSERVER_HASH_DISPLAY_BYTES` affects only how observer prefixes are displayed
+  in the UI. It does not restrict which packet paths are decoded.
 - Region filters only work for observers with known coordinates.
 - Observers that have not been heard from within `OBSERVER_RETENTION_SECONDS`
   are omitted from the dashboard directory and map.

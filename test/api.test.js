@@ -11,14 +11,17 @@ const TEST_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_DIR = path.resolve(TEST_DIR, '..');
 const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-health-check-test-'));
 const observerFile = path.join(tempDir, 'observer.json');
+const observerActivityFile = path.join(tempDir, 'observer-activity.json');
 const resultsFile = path.join(tempDir, 'session-results.json');
 fs.writeFileSync(observerFile, '{}\n', 'utf8');
+fs.writeFileSync(observerActivityFile, '{\n  "version": 1,\n  "observers": {}\n}\n', 'utf8');
 fs.writeFileSync(resultsFile, '{\n  "version": 1,\n  "sessions": []\n}\n', 'utf8');
 
 process.env.MESH_HEALTH_DISABLE_RUNTIME = 'true';
 process.env.TURNSTILE_ENABLED = 'false';
 process.env.LOG_LEVEL = 'info';
 process.env.OBSERVERS_FILE = observerFile;
+process.env.OBSERVER_ACTIVITY_FILE = observerActivityFile;
 process.env.RESULTS_FILE = resultsFile;
 process.env.APP_TITLE = 'Boston MeshCore Observer Coverage';
 process.env.APP_EYEBROW = 'Boston MeshCore Observer Coverage';
@@ -26,6 +29,7 @@ process.env.DASH_BROKER_HOST = 'mqttmc01.bostonme.sh:443';
 process.env.TEST_CHANNEL_NAME = 'health-check';
 process.env.TEST_CHANNEL_SECRET = 'E6D973AAC5101145AD3A3F3A0B3D52EB';
 process.env.OBSERVER_RETENTION_SECONDS = '14400';
+process.env.OBSERVER_HASH_DISPLAY_BYTES = '1';
 
 const serverModule = await import(
   `${pathToFileURL(path.join(REPO_DIR, 'server.js')).href}?test=${Date.now()}`
@@ -75,12 +79,13 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
 
   const payload = await response.json();
   assert.equal(payload.site.title, 'Boston MeshCore Observer Coverage');
-  assert.equal(payload.site.version, '1.3.0');
+  assert.equal(payload.site.version, '1.3.1');
   assert.equal(payload.testChannel.name, 'health-check');
   assert.equal(payload.testChannel.hash, '99');
   assert.equal(payload.turnstile.enabled, false);
   assert.equal(payload.mqtt.broker, 'mqttmc01.bostonme.sh:443');
   assert.equal(payload.results.retentionSeconds, 604800);
+  assert.equal(payload.observerStats.hashDisplayBytes, 1);
 });
 
 test('GET /app includes server-rendered social meta tags', async () => {
@@ -303,6 +308,29 @@ test('fixture packet ingest matches sessions for 2-byte path hashes', async () =
   assert.equal(session.repeaterCount, 3);
   assert.deepEqual(session.receipts[0].path.slice(0, 3), ['3FA0', '860C', 'E0EE']);
   assert.equal(session.receipts[0].path.at(-1), 'AF07');
+});
+
+test('packet activity is persisted for dynamic observer ranking', async () => {
+  const observerKey = 'AF07FC2005E04D08DDA921E64985E62201BF974AE0B0E35084B804229ED11A2B';
+  const envelope = buildGroupTextEnvelope({
+    secretHex: process.env.TEST_CHANNEL_SECRET,
+    sender: 'Activity Tester',
+    message: 'activity sample',
+    messageHash: '9988776655443322',
+    timestamp: 1760000200,
+  });
+
+  ingestMqttMessage(
+    `meshcore/BOS/${observerKey}/packets`,
+    Buffer.from(JSON.stringify(envelope)),
+  );
+  flushScheduledWrites();
+
+  const stored = JSON.parse(fs.readFileSync(observerActivityFile, 'utf8'));
+  const dayKey = new Date().toISOString().slice(0, 10);
+  assert.equal(stored.version, 1);
+  assert.equal(stored.observers?.[observerKey]?.days?.[dayKey], 1);
+  assert.ok(Number(stored.observers?.[observerKey]?.lastPacketAt) > 0);
 });
 
 test('observer metadata learns and exposes saved coordinates from mqtt', async () => {

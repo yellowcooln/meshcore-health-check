@@ -28,6 +28,7 @@ function squareFeature(label, macro, west, south, east, north) {
 test('bootstrap exposes grouped region hierarchy for observer filters', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-health-regions-test-'));
   const observerFile = path.join(tempDir, 'observer.json');
+  const observerActivityFile = path.join(tempDir, 'observer-activity.json');
   const resultsFile = path.join(tempDir, 'session-results.json');
   const regionsFile = path.join(tempDir, 'regions.geojson');
   const observerKeys = [
@@ -38,6 +39,7 @@ test('bootstrap exposes grouped region hierarchy for observer filters', async ()
   ];
 
   fs.writeFileSync(observerFile, '{}\n', 'utf8');
+  fs.writeFileSync(observerActivityFile, '{\n  "version": 1,\n  "observers": {}\n}\n', 'utf8');
   fs.writeFileSync(resultsFile, '{\n  "version": 1,\n  "sessions": []\n}\n', 'utf8');
   fs.writeFileSync(regionsFile, `${JSON.stringify({
     type: 'FeatureCollection',
@@ -54,6 +56,7 @@ test('bootstrap exposes grouped region hierarchy for observer filters', async ()
     TURNSTILE_ENABLED: process.env.TURNSTILE_ENABLED,
     LOG_LEVEL: process.env.LOG_LEVEL,
     OBSERVERS_FILE: process.env.OBSERVERS_FILE,
+    OBSERVER_ACTIVITY_FILE: process.env.OBSERVER_ACTIVITY_FILE,
     RESULTS_FILE: process.env.RESULTS_FILE,
     REGIONS_FILE: process.env.REGIONS_FILE,
     REGION_NAME_PROPERTY: process.env.REGION_NAME_PROPERTY,
@@ -67,6 +70,7 @@ test('bootstrap exposes grouped region hierarchy for observer filters', async ()
   process.env.TURNSTILE_ENABLED = 'false';
   process.env.LOG_LEVEL = 'info';
   process.env.OBSERVERS_FILE = observerFile;
+  process.env.OBSERVER_ACTIVITY_FILE = observerActivityFile;
   process.env.RESULTS_FILE = resultsFile;
   process.env.REGIONS_FILE = regionsFile;
   process.env.REGION_NAME_PROPERTY = 'label';
@@ -171,6 +175,7 @@ test('bootstrap exposes grouped region hierarchy for observer filters', async ()
 test('bootstrap falls back to flat region filters when boundaries have no group property', async () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'mesh-health-regions-flat-test-'));
   const observerFile = path.join(tempDir, 'observer.json');
+  const observerActivityFile = path.join(tempDir, 'observer-activity.json');
   const resultsFile = path.join(tempDir, 'session-results.json');
   const regionsFile = path.join(tempDir, 'regions.geojson');
   const observerKeys = [
@@ -179,6 +184,7 @@ test('bootstrap falls back to flat region filters when boundaries have no group 
   ];
 
   fs.writeFileSync(observerFile, '{}\n', 'utf8');
+  fs.writeFileSync(observerActivityFile, '{\n  "version": 1,\n  "observers": {}\n}\n', 'utf8');
   fs.writeFileSync(resultsFile, '{\n  "version": 1,\n  "sessions": []\n}\n', 'utf8');
   fs.writeFileSync(regionsFile, `${JSON.stringify({
     type: 'FeatureCollection',
@@ -196,6 +202,7 @@ test('bootstrap falls back to flat region filters when boundaries have no group 
     TURNSTILE_ENABLED: process.env.TURNSTILE_ENABLED,
     LOG_LEVEL: process.env.LOG_LEVEL,
     OBSERVERS_FILE: process.env.OBSERVERS_FILE,
+    OBSERVER_ACTIVITY_FILE: process.env.OBSERVER_ACTIVITY_FILE,
     RESULTS_FILE: process.env.RESULTS_FILE,
     REGIONS_FILE: process.env.REGIONS_FILE,
     REGION_NAME_PROPERTY: process.env.REGION_NAME_PROPERTY,
@@ -209,6 +216,7 @@ test('bootstrap falls back to flat region filters when boundaries have no group 
   process.env.TURNSTILE_ENABLED = 'false';
   process.env.LOG_LEVEL = 'info';
   process.env.OBSERVERS_FILE = observerFile;
+  process.env.OBSERVER_ACTIVITY_FILE = observerActivityFile;
   process.env.RESULTS_FILE = resultsFile;
   process.env.REGIONS_FILE = regionsFile;
   process.env.REGION_NAME_PROPERTY = 'label';

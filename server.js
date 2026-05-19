@@ -175,10 +175,12 @@ function brokerLabel(urlString) {
 
 function hashFromKeyPrefix(value) {
   const normalized = normalizeKey(value);
-  if (normalized.length < 2) {
+  const byteSize = OBSERVER_HASH_DISPLAY_BYTES;
+  const displayLength = byteSize * 2;
+  if (normalized.length < displayLength) {
     return '';
   }
-  return normalized.slice(0, 2);
+  return normalized.slice(0, displayLength);
 }
 
 function observerPathHop(observerKey, hashSize = 1) {
@@ -287,6 +289,8 @@ const MQTT_TOPICS = dedupe(envList('MQTT_TOPIC').length > 0
   : ['meshcore/BOS/#']);
 const OBSERVERS_FILE = envValue('OBSERVERS_FILE', path.join('data', 'observer.json'));
 const OBSERVERS_FILE_PATH = resolveAppPath(OBSERVERS_FILE);
+const OBSERVER_ACTIVITY_FILE = envValue('OBSERVER_ACTIVITY_FILE', path.join('data', 'observer-activity.json'));
+const OBSERVER_ACTIVITY_FILE_PATH = resolveAppPath(OBSERVER_ACTIVITY_FILE);
 const REGIONS_FILE = envValue('REGIONS_FILE', '');
 const REGION_NAME_PROPERTY = envValue('REGION_NAME_PROPERTY', 'name');
 const REGION_GROUP_PROPERTY = envValue('REGION_GROUP_PROPERTY', 'group');
@@ -356,6 +360,18 @@ const OBSERVER_ACTIVE_WINDOW_MS = Math.max(
   60,
   envNumber('OBSERVER_ACTIVE_WINDOW_SECONDS', 900),
 ) * 1000;
+const OBSERVER_TOP_WINDOW_DAYS = Math.max(
+  1,
+  Math.round(envNumber('OBSERVER_TOP_WINDOW_DAYS', 7)),
+);
+const OBSERVER_TOP_COUNT = Math.max(
+  1,
+  Math.round(envNumber('OBSERVER_TOP_COUNT', 10)),
+);
+const OBSERVER_HASH_DISPLAY_BYTES = Math.max(
+  1,
+  Math.min(3, Math.round(envNumber('OBSERVER_HASH_DISPLAY_BYTES', 1))),
+);
 const OBSERVER_RETENTION_SECONDS = envNumber('OBSERVER_RETENTION_SECONDS', 14400);
 const OBSERVER_RETENTION_MS = OBSERVER_RETENTION_SECONDS <= 0
   ? 0
@@ -632,24 +648,45 @@ function deriveRegionInfo(lat, lon) {
   return { region: null, regionGroup: null };
 }
 
+function utcDayKey(timestamp = Date.now()) {
+  return new Date(timestamp).toISOString().slice(0, 10);
+}
+
+function recentUtcDayKeys(days, now = Date.now()) {
+  const safeDays = Math.max(1, Math.round(Number(days) || 1));
+  const keys = [];
+  for (let index = 0; index < safeDays; index += 1) {
+    keys.push(utcDayKey(now - (index * 86400000)));
+  }
+  return keys;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 const observerProfiles = parseObserversJson(OBSERVERS_FILE_PATH);
+const pinnedObserverNameKeys = new Set(
+  [...observerProfiles.entries()]
+    .filter(([, profile]) => String(profile?.name || '').trim())
+    .map(([key]) => key),
+);
 const appHtmlTemplate = fs.readFileSync(path.join(APP_DIR, 'public/index.html'), 'utf8');
 const landingHtmlTemplate = fs.readFileSync(path.join(APP_DIR, 'public/landing.html'), 'utf8');
 const shareHtmlTemplate = fs.readFileSync(path.join(APP_DIR, 'public/share.html'), 'utf8');
 const observerState = new Map();
+const observerActivityHistory = parseObserverActivityJson(OBSERVER_ACTIVITY_FILE_PATH);
 const sessions = new Map();
 const messageToSession = new Map();
 const rateLimitBuckets = new Map();
 const turnstileAuthTokens = new Map();
 let observerNamesWriteTimer = null;
+let observerActivityWriteTimer = null;
 let resultsWriteTimer = null;
 
 function writeJsonFileAtomic(filePath, payload) {
   const body = `${JSON.stringify(payload, null, 2)}\n`;
   const tempPath = `${filePath}.tmp`;
   try {
+    fs.mkdirSync(path.dirname(filePath), { recursive: true });
     fs.writeFileSync(tempPath, body, 'utf8');
     fs.renameSync(tempPath, filePath);
   } catch (error) {
@@ -665,6 +702,66 @@ function writeJsonFileAtomic(filePath, payload) {
     throw error;
   }
 }
+
+function parseObserverActivityJson(filePath) {
+  const resolved = resolveAppPath(filePath);
+  if (!fs.existsSync(resolved)) {
+    return new Map();
+  }
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(resolved, 'utf8'));
+    const rawObservers = parsed?.observers && typeof parsed.observers === 'object'
+      ? parsed.observers
+      : parsed;
+    const history = new Map();
+    if (!rawObservers || typeof rawObservers !== 'object' || Array.isArray(rawObservers)) {
+      return history;
+    }
+
+    for (const [rawKey, rawEntry] of Object.entries(rawObservers)) {
+      const key = normalizeKey(rawKey);
+      if (!key || !rawEntry || typeof rawEntry !== 'object' || Array.isArray(rawEntry)) {
+        continue;
+      }
+      const days = {};
+      const rawDays = rawEntry.days && typeof rawEntry.days === 'object' ? rawEntry.days : {};
+      for (const [dayKey, rawCount] of Object.entries(rawDays)) {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(dayKey)) {
+          continue;
+        }
+        const count = Math.max(0, Math.floor(Number(rawCount) || 0));
+        if (count > 0) {
+          days[dayKey] = count;
+        }
+      }
+      const lastPacketAt = Number(rawEntry.lastPacketAt || 0);
+      if (Object.keys(days).length > 0 || (Number.isFinite(lastPacketAt) && lastPacketAt > 0)) {
+        history.set(key, {
+          days,
+          lastPacketAt: Number.isFinite(lastPacketAt) && lastPacketAt > 0 ? lastPacketAt : 0,
+        });
+      }
+    }
+    return history;
+  } catch (error) {
+    logger.warn(`[config] failed to parse ${resolved}: ${error.message}`);
+    return new Map();
+  }
+}
+
+function cloneObserverActivityHistory(source) {
+  const out = new Map();
+  for (const [key, entry] of source.entries()) {
+    out.set(key, {
+      days: { ...(entry?.days || {}) },
+      lastPacketAt: Number(entry?.lastPacketAt || 0),
+    });
+  }
+  return out;
+}
+
+const baselineObserverActivityHistory = cloneObserverActivityHistory(observerActivityHistory);
 
 function sessionRetentionDeadline(session) {
   const createdAt = Number(session?.createdAt || 0);
@@ -822,6 +919,11 @@ function flushScheduledWrites() {
     observerNamesWriteTimer = null;
     writeObserverNamesFile();
   }
+  if (observerActivityWriteTimer) {
+    clearTimeout(observerActivityWriteTimer);
+    observerActivityWriteTimer = null;
+    writeObserverActivityFile();
+  }
   if (resultsWriteTimer) {
     clearTimeout(resultsWriteTimer);
     resultsWriteTimer = null;
@@ -860,6 +962,40 @@ function scheduleObserverNamesWrite() {
   }, 250);
 }
 
+function writeObserverActivityFile() {
+  const observers = {};
+  for (const [key, entry] of [...observerActivityHistory.entries()].sort(([left], [right]) => left.localeCompare(right))) {
+    const days = Object.fromEntries(
+      Object.entries(entry?.days || {})
+        .filter(([, count]) => Math.max(0, Math.floor(Number(count) || 0)) > 0)
+        .sort(([left], [right]) => left.localeCompare(right))
+        .map(([dayKey, count]) => [dayKey, Math.max(0, Math.floor(Number(count) || 0))]),
+    );
+    const lastPacketAt = Number(entry?.lastPacketAt || 0);
+    if (Object.keys(days).length === 0 && !(Number.isFinite(lastPacketAt) && lastPacketAt > 0)) {
+      continue;
+    }
+    observers[key] = {
+      ...(Object.keys(days).length > 0 ? { days } : {}),
+      ...(Number.isFinite(lastPacketAt) && lastPacketAt > 0 ? { lastPacketAt } : {}),
+    };
+  }
+  writeJsonFileAtomic(OBSERVER_ACTIVITY_FILE_PATH, {
+    version: 1,
+    observers,
+  });
+}
+
+function scheduleObserverActivityWrite() {
+  if (observerActivityWriteTimer) {
+    return;
+  }
+  observerActivityWriteTimer = setTimeout(() => {
+    observerActivityWriteTimer = null;
+    writeObserverActivityFile();
+  }, 250);
+}
+
 if (!fs.existsSync(OBSERVERS_FILE_PATH)) {
   writeObserverNamesFile();
 }
@@ -870,9 +1006,11 @@ if (!fs.existsSync(RESULTS_FILE_PATH) && !DISABLE_RESULTS_FILE_WRITES) {
 
 function createObserverRecord(observerKey) {
   const profile = observerProfiles.get(observerKey) || null;
+  const activity = observerActivityHistory.get(observerKey) || null;
   const lat = normalizeCoordinate(profile?.lat ?? null, 'lat');
   const lon = normalizeCoordinate(profile?.lon ?? null, 'lon');
   const regionInfo = deriveRegionInfo(lat, lon);
+  const lastPacketAt = Math.max(0, Number(activity?.lastPacketAt || 0));
   return {
     key: observerKey,
     hash: hashFromKeyPrefix(observerKey),
@@ -881,8 +1019,8 @@ function createObserverRecord(observerKey) {
     lon,
     region: regionInfo.region,
     regionGroup: regionInfo.regionGroup,
-    firstSeenAt: 0,
-    lastPacketAt: 0,
+    firstSeenAt: lastPacketAt,
+    lastPacketAt,
     packetCount: 0,
   };
 }
@@ -1042,6 +1180,9 @@ function ensureObserverRecord(observerKey) {
 
 function primeObserverDirectory() {
   for (const key of observerProfiles.keys()) {
+    ensureObserverRecord(key);
+  }
+  for (const key of observerActivityHistory.keys()) {
     ensureObserverRecord(key);
   }
   for (const key of KNOWN_OBSERVERS) {
@@ -1372,15 +1513,15 @@ function extractDeviceName(obj, topic = '') {
   }
 
   for (const key of [
-    'name',
-    'device_name',
-    'deviceName',
-    'node_name',
-    'nodeName',
     'display_name',
     'displayName',
+    'node_name',
+    'nodeName',
+    'device_name',
+    'deviceName',
     'callsign',
     'label',
+    'name',
   ]) {
     const value = obj[key];
     if (typeof value === 'string' && value.trim()) {
@@ -1633,15 +1774,65 @@ function activeObserverKeys(now = Date.now()) {
   return dedupe(keys.sort());
 }
 
-function defaultObserverTarget() {
+function observerDisplayLabelForKey(observerKey) {
+  const observer = observerState.get(observerKey);
+  const profile = observerProfiles.get(observerKey);
+  return String(observer?.name || profile?.name || shortKey(observerKey));
+}
+
+function topObserverKeys(now = Date.now()) {
+  const dayKeys = new Set(recentUtcDayKeys(OBSERVER_TOP_WINDOW_DAYS, now));
+  const ranked = [];
+
+  for (const [key, entry] of observerActivityHistory.entries()) {
+    let total = 0;
+    for (const dayKey of dayKeys) {
+      total += Math.max(0, Math.floor(Number(entry?.days?.[dayKey] || 0)));
+    }
+    if (total <= 0) {
+      continue;
+    }
+    ranked.push({
+      key,
+      total,
+      lastPacketAt: Number(entry?.lastPacketAt || 0),
+      label: observerDisplayLabelForKey(key),
+    });
+  }
+
+  ranked.sort((left, right) => {
+    if (left.total !== right.total) {
+      return right.total - left.total;
+    }
+    if (left.lastPacketAt !== right.lastPacketAt) {
+      return right.lastPacketAt - left.lastPacketAt;
+    }
+    const byLabel = left.label.localeCompare(right.label);
+    if (byLabel !== 0) {
+      return byLabel;
+    }
+    return left.key.localeCompare(right.key);
+  });
+
+  return ranked.slice(0, OBSERVER_TOP_COUNT).map((entry) => entry.key);
+}
+
+function defaultObserverTarget(now = Date.now()) {
   if (KNOWN_OBSERVERS.length > 0) {
     return {
       keys: [...KNOWN_OBSERVERS],
       source: 'configured',
     };
   }
+  const topKeys = topObserverKeys(now);
+  if (topKeys.length > 0) {
+    return {
+      keys: topKeys,
+      source: 'top-window',
+    };
+  }
   return {
-    keys: activeObserverKeys(),
+    keys: activeObserverKeys(now),
     source: 'active-window',
   };
 }
@@ -1923,6 +2114,9 @@ function snapshotPayload() {
       retentionSeconds: Math.round(OBSERVER_RETENTION_MS / 1000),
       activeCount: activeObservers.length,
       windowSeconds: Math.round(OBSERVER_ACTIVE_WINDOW_MS / 1000),
+      topWindowDays: OBSERVER_TOP_WINDOW_DAYS,
+      topCount: OBSERVER_TOP_COUNT,
+      hashDisplayBytes: OBSERVER_HASH_DISPLAY_BYTES,
     },
     results: {
       retentionSeconds: Math.round(RESULT_RETENTION_MS / 1000),
@@ -1968,19 +2162,50 @@ function touchObserver(observerKey) {
   return observer;
 }
 
+function noteObserverPacketActivity(observerKey, timestamp = Date.now()) {
+  const normalizedKey = normalizeKey(observerKey);
+  const normalizedTimestamp = Number(timestamp);
+  if (!normalizedKey || !Number.isFinite(normalizedTimestamp) || normalizedTimestamp <= 0) {
+    return false;
+  }
+  const dayKey = utcDayKey(normalizedTimestamp);
+  const entry = observerActivityHistory.get(normalizedKey) || {
+    days: {},
+    lastPacketAt: 0,
+  };
+  const nextCount = Math.max(0, Math.floor(Number(entry.days?.[dayKey] || 0))) + 1;
+  const nextLastPacketAt = Math.max(Number(entry.lastPacketAt || 0), normalizedTimestamp);
+  const changed = Number(entry.days?.[dayKey] || 0) !== nextCount
+    || Number(entry.lastPacketAt || 0) !== nextLastPacketAt;
+  entry.days = {
+    ...(entry.days || {}),
+    [dayKey]: nextCount,
+  };
+  entry.lastPacketAt = nextLastPacketAt;
+  observerActivityHistory.set(normalizedKey, entry);
+  if (changed) {
+    scheduleObserverActivityWrite();
+  }
+  return changed;
+}
+
 function updateObserverName(observerKey, name) {
   const normalizedKey = normalizeKey(observerKey);
   const cleanName = String(name || '').trim();
   if (!normalizedKey || !cleanName) {
     return false;
   }
-  const previous = observerProfiles.get(normalizedKey)?.name || '';
+  const profile = observerProfiles.get(normalizedKey) || { name: '', lat: null, lon: null };
+  const previous = String(profile.name || '').trim();
   const observer = ensureObserverRecord(normalizedKey);
   if (!observer) {
     return false;
   }
+  if (pinnedObserverNameKeys.has(normalizedKey) && previous && previous !== cleanName) {
+    observer.name = previous;
+    return false;
+  }
   const changed = previous !== cleanName || observer.name !== cleanName;
-  const profile = observerProfiles.get(normalizedKey) || { name: '', lat: null, lon: null };
   observerProfiles.set(normalizedKey, { ...profile, name: cleanName });
   observer.name = cleanName;
   if (changed) {
@@ -2206,6 +2431,7 @@ function handlePacketMessage(topic, observerKey, payloadBuffer) {
   if (!observer) {
     return;
   }
+  noteObserverPacketActivity(observer.key);
 
   const { raw, envelope } = parseEnvelope(payloadBuffer);
   if (!raw) {
@@ -2675,6 +2901,13 @@ export function resetTestState() {
   rateLimitBuckets.clear();
   turnstileAuthTokens.clear();
   observerState.clear();
+  observerActivityHistory.clear();
+  for (const [key, entry] of baselineObserverActivityHistory.entries()) {
+    observerActivityHistory.set(key, {
+      days: { ...(entry?.days || {}) },
+      lastPacketAt: Number(entry?.lastPacketAt || 0),
+    });
+  }
   primeObserverDirectory();
   if (!DISABLE_RESULTS_FILE_WRITES) {
     writeResultsFile();
@@ -2702,7 +2935,14 @@ export function ingestMqttMessage(topic, payload) {
   }
 }
 
-export { app, server, APP_DATA_DIR, OBSERVERS_FILE_PATH, RESULTS_FILE_PATH };
+export {
+  app,
+  server,
+  APP_DATA_DIR,
+  OBSERVERS_FILE_PATH,
+  OBSERVER_ACTIVITY_FILE_PATH,
+  RESULTS_FILE_PATH,
+};
 
 if (IS_MAIN_MODULE && !DISABLE_RUNTIME) {
   startRuntime();

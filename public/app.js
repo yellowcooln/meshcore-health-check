@@ -97,6 +97,7 @@ const state = {
   socketRetryTimer: 0,
   sessionRetargetTimer: 0,
   refreshInFlight: false,
+  observerAllowlistSignature: '',
   map: {
     instance: null,
     layer: null,
@@ -236,10 +237,17 @@ function shortObserverKey(key) {
   return `${value.slice(0, 6)}...${value.slice(-6)}`;
 }
 
+function observerHashPrefix(key) {
+  const value = String(key || '').trim().toUpperCase();
+  const byteSize = Math.max(1, Math.min(3, Number(state.snapshot?.observerStats?.hashDisplayBytes || 1)));
+  const displayLength = byteSize * 2;
+  return value.slice(0, displayLength) || '--';
+}
+
 function fallbackObserverRecord(key) {
   return {
     key,
-    hash: String(key || '').trim().toUpperCase().slice(0, 2) || '--',
+    hash: observerHashPrefix(key),
     label: shortObserverKey(key),
     name: null,
     lat: null,
@@ -266,6 +274,18 @@ function configuredDefaultObservers() {
   return configuredDefaultObserverKeys().map((key) => fallbackObserverRecord(key));
 }
 
+function observerDisplayLabel(observer) {
+  const name = String(observer?.name || '').trim();
+  if (name) {
+    return name;
+  }
+  const label = String(observer?.label || '').trim();
+  if (label) {
+    return label;
+  }
+  return shortObserverKey(observer?.key);
+}
+
 function selectableObservers() {
   const merged = new Map();
   for (const observer of configuredDefaultObservers()) {
@@ -279,7 +299,11 @@ function selectableObservers() {
       isDefaultTarget: Boolean(existing.isDefaultTarget),
     });
   }
-  return [...merged.values()];
+  return [...merged.values()].map((observer) => ({
+    ...observer,
+    label: observerDisplayLabel(observer),
+    shortKey: observer.shortKey || shortObserverKey(observer.key),
+  }));
 }
 
 function customSelectedObserverKeys() {
@@ -306,6 +330,10 @@ function defaultObserverTargetSummary() {
   const count = defaultObserverKeys().length;
   if (source === 'configured') {
     return `Default: ${count} observer${count === 1 ? '' : 's'}.`;
+  }
+  if (source === 'top-window') {
+    const days = Math.max(1, Number(state.snapshot?.observerStats?.topWindowDays || 7));
+    return `Default: top ${count} observer${count === 1 ? '' : 's'} over ${days} day${days === 1 ? '' : 's'}.`;
   }
   return `Default: ${count} active observer${count === 1 ? '' : 's'}.`;
 }
@@ -372,6 +400,9 @@ function sessionObserverSourceLabel(session) {
   }
   if (session.expectedObserverSource === 'configured') {
     return 'Default set';
+  }
+  if (session.expectedObserverSource === 'top-window') {
+    return 'Top observers';
   }
   if (session.expectedObserverSource === 'active-window') {
     return 'Active set';
@@ -1088,11 +1119,11 @@ function renderObserverAllowlist() {
   renderRegionFilter();
   const directory = selectableObservers();
   const selected = new Set(effectiveObserverKeysForCreate());
-  ui.observerAllowlist.innerHTML = '';
   ui.observerAllowlistClear.disabled = usingDefaultObserverSet();
 
   if (directory.length === 0) {
     ui.observerAllowlistNote.textContent = 'No observers available to select yet.';
+    state.observerAllowlistSignature = '__empty__';
     ui.observerAllowlist.innerHTML =
       '<div class="empty-state compact">Observer choices appear as metadata and packets arrive.</div>';
     return;
@@ -1103,30 +1134,46 @@ function renderObserverAllowlist() {
     ? defaultObserverTargetSummary()
     : `Custom: ${selectedCount} observer${selectedCount === 1 ? '' : 's'}.`;
 
-  for (const observer of directory) {
+  const rows = directory.map((observer) => ({
+    key: observer.key,
+    label: observerDisplayLabel(observer),
+    hash: observer.hash || '--',
+    detail: [
+      observer.isDefaultTarget ? 'default target' : 'available',
+      observer.isRetained === false ? 'not recently heard' : 'known observer',
+      observer.hasLocation ? 'mapped' : 'no map',
+    ].join(' · '),
+    checked: selected.has(observer.key),
+    stale: observer.isRetained === false,
+  }));
+  const signature = JSON.stringify(
+    rows.map((row) => [row.key, row.label, row.hash, row.detail, row.checked, row.stale]),
+  );
+  if (state.observerAllowlistSignature === signature) {
+    return;
+  }
+
+  const previousScrollTop = ui.observerAllowlist.scrollTop;
+  ui.observerAllowlist.innerHTML = '';
+
+  for (const row of rows) {
     const item = document.createElement('label');
-    item.className = `observer-option ${observer.isActive ? 'active' : 'inactive'}`;
-    const status = observer.isActive
-      ? 'active'
-      : observer.isRetained === false
-        ? 'not recently heard'
-        : 'idle';
-    const locationLabel = observer.hasLocation ? 'mapped' : 'no map';
+    item.className = `observer-option ${row.stale ? 'stale' : 'ready'} ${row.checked ? 'selected' : ''}`;
     item.innerHTML = `
-      <input type="checkbox" value="${observer.key}" ${selected.has(observer.key) ? 'checked' : ''}>
+      <input type="checkbox" value="${row.key}" ${row.checked ? 'checked' : ''}>
       <span class="observer-option-copy">
-        <strong>${escapeHtml(observer.label)}</strong>
-        <span>${escapeHtml(observer.hash || '--')} · ${escapeHtml(observer.shortKey)} · ${escapeHtml(status)}</span>
-        <span>${observer.packetCount || 0} packet${observer.packetCount === 1 ? '' : 's'} · ${locationLabel}</span>
+        <strong>${escapeHtml(row.label)}</strong>
+        <span>${escapeHtml(row.hash)}</span>
+        <span>${escapeHtml(row.detail)}</span>
       </span>
     `;
     const checkbox = item.querySelector('input');
     checkbox.addEventListener('change', () => {
       const next = new Set(effectiveObserverKeysForCreate());
       if (checkbox.checked) {
-        next.add(observer.key);
+        next.add(row.key);
       } else {
-        next.delete(observer.key);
+        next.delete(row.key);
       }
       state.selectedRegionGroup = null;
       state.selectedRegion = null;
@@ -1137,6 +1184,9 @@ function renderObserverAllowlist() {
     });
     ui.observerAllowlist.appendChild(item);
   }
+
+  ui.observerAllowlist.scrollTop = previousScrollTop;
+  state.observerAllowlistSignature = signature;
 }
 
 function applySiteBranding(snapshot) {

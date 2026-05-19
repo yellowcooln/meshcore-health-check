@@ -29,6 +29,8 @@ Other community Health Checks:
 - default observer target sets plus browser-side custom observer selection
 - persistent observer profiles through
   [data/observer.json](/home/yellowcooln/mesh-health-check/data/observer.json)
+- rolling observer activity history through
+  [data/observer-activity.json](/home/yellowcooln/mesh-health-check/data/observer-activity.json)
 - MQTT-learned observer locations saved back into `data/observer.json`
 - Cloudflare Turnstile landing page for bot protection
 - optional external hero link driven by env
@@ -62,6 +64,8 @@ Each code:
   persistent observer public-key profile map with `name`, `lat`, and `lon`
 - [data/session-results.json](/home/yellowcooln/mesh-health-check/data/session-results.json):
   retained session result store for shareable links
+- [data/observer-activity.json](/home/yellowcooln/mesh-health-check/data/observer-activity.json):
+  rolling day-bucket packet counts used for dynamic default observer ranking
 - [`.env.example`](/home/yellowcooln/mesh-health-check/.env.example): deployment
   config template
 - [HOWTO.md](/home/yellowcooln/mesh-health-check/HOWTO.md): setup and operator
@@ -91,7 +95,9 @@ Key groups:
   `SESSION_TTL_SECONDS`, `RESULT_RETENTION_SECONDS`, `MAX_USES_PER_CODE`,
   `SESSION_RATE_WINDOW_SECONDS`, `SESSION_RATE_MAX`
 - Observers:
-  `OBSERVERS_FILE`, `RESULTS_FILE`, `KNOWN_OBSERVERS`,
+  `OBSERVERS_FILE`, `OBSERVER_ACTIVITY_FILE`, `RESULTS_FILE`,
+  `KNOWN_OBSERVERS`, `OBSERVER_TOP_WINDOW_DAYS`, `OBSERVER_TOP_COUNT`,
+  `OBSERVER_HASH_DISPLAY_BYTES`,
   `OBSERVER_ACTIVE_WINDOW_SECONDS`, `OBSERVER_RETENTION_SECONDS`
 - Regions:
   `REGIONS_FILE`, `REGION_NAME_PROPERTY`, `REGION_GROUP_PROPERTY`
@@ -106,8 +112,16 @@ Important behavior:
 
 - If `KNOWN_OBSERVERS` is set, new codes use that configured observer set by
   default.
-- If `KNOWN_OBSERVERS` is blank, the default target falls back to observers
-  active in the configured time window.
+- If `KNOWN_OBSERVERS` is blank, the app ranks observers by recent packet
+  history from `data/observer-activity.json` and auto-selects the top observers
+  from the last `OBSERVER_TOP_WINDOW_DAYS`.
+- If there is no recent activity history yet, the default target falls back to
+  observers active in the configured time window.
+- `OBSERVER_TOP_COUNT` controls how many recent observers are auto-selected
+  when the dynamic ranking path is in use.
+- `OBSERVER_HASH_DISPLAY_BYTES` controls how observer hash prefixes are shown in
+  the UI, for example `AB`, `ABCD`, or `ABCDEF`. It does not change which
+  packets are decoded or accepted.
 - Observers fall out of the dashboard directory and map if they have not been
   heard from within `OBSERVER_RETENTION_SECONDS`.
 - Set `OBSERVER_RETENTION_SECONDS=0` to disable stale-observer pruning and
@@ -115,6 +129,8 @@ Important behavior:
 - Users can override the default target in the browser for each new code.
 - `data/observer.json` is loaded at boot and updated when new observer names or
   coordinates are learned from MQTT metadata.
+- `data/observer-activity.json` is updated as packet traffic arrives so the app
+  can keep a rolling view of the strongest observers on the mesh.
 - `data/session-results.json` retains shareable result data for the configured
   retention window and is pruned automatically after expiry.
 - The dashboard map only plots observers that have saved coordinates.

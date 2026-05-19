@@ -10,11 +10,13 @@ test('default persistent file paths resolve under data/', async () => {
   const original = {
     MESH_HEALTH_DISABLE_RUNTIME: process.env.MESH_HEALTH_DISABLE_RUNTIME,
     OBSERVERS_FILE: process.env.OBSERVERS_FILE,
+    OBSERVER_ACTIVITY_FILE: process.env.OBSERVER_ACTIVITY_FILE,
     RESULTS_FILE: process.env.RESULTS_FILE,
   };
 
   process.env.MESH_HEALTH_DISABLE_RUNTIME = 'true';
   process.env.OBSERVERS_FILE = '';
+  process.env.OBSERVER_ACTIVITY_FILE = '';
   process.env.RESULTS_FILE = '';
 
   try {
@@ -25,6 +27,10 @@ test('default persistent file paths resolve under data/', async () => {
     assert.equal(
       module.OBSERVERS_FILE_PATH,
       path.join(REPO_DIR, 'data', 'observer.json'),
+    );
+    assert.equal(
+      module.OBSERVER_ACTIVITY_FILE_PATH,
+      path.join(REPO_DIR, 'data', 'observer-activity.json'),
     );
     assert.equal(
       module.RESULTS_FILE_PATH,
@@ -40,6 +46,11 @@ test('default persistent file paths resolve under data/', async () => {
       delete process.env.OBSERVERS_FILE;
     } else {
       process.env.OBSERVERS_FILE = original.OBSERVERS_FILE;
+    }
+    if (original.OBSERVER_ACTIVITY_FILE === undefined) {
+      delete process.env.OBSERVER_ACTIVITY_FILE;
+    } else {
+      process.env.OBSERVER_ACTIVITY_FILE = original.OBSERVER_ACTIVITY_FILE;
     }
     if (original.RESULTS_FILE === undefined) {
       delete process.env.RESULTS_FILE;

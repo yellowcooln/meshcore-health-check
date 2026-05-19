@@ -1,5 +1,25 @@
 # Changes
 
+## v1.3.1
+
+- added rolling observer activity tracking in `data/observer-activity.json` so
+  the app can rank recent MQTT-connected observers over a configurable time
+  window and auto-select the top default target set when `KNOWN_OBSERVERS` is
+  blank
+- added the observer activity env controls:
+  `OBSERVER_ACTIVITY_FILE`, `OBSERVER_TOP_WINDOW_DAYS`, and
+  `OBSERVER_TOP_COUNT`
+- improved observer name handling so saved observer profile names stay stable
+  instead of being too easily replaced by lower-quality live MQTT metadata
+- stabilized the Observer Set list so routine live snapshot updates no longer
+  reset the list content and scroll position while users are browsing nodes
+- refreshed the status and telemetry palette to rely less on red/green
+  contrast and work better for color-blind users
+- added `OBSERVER_HASH_DISPLAY_BYTES` so the UI can show observer prefixes as
+  1-byte, 2-byte, or 3-byte hash labels without changing packet decode rules
+- aligned the remaining map-marker and "Scored Against" standby colors with
+  the same accessible score-state palette used across the rest of the app
+
 ## v1.3.0
 
 - thank you to @gadgethd for PR #14, which added the region-based observer
