@@ -18,7 +18,7 @@
   },
   "dependencies": {
     "@michaelhart/meshcore-decoder": "^0.3.0",
-    "dotenv": "^16.4.5",
+    "dotenv": "^17.4.2",
     "express": "^4.22.2",
     "leaflet": "^1.9.4",
     "mqtt": "^5.15.1",
