@@ -14,7 +14,7 @@
     "dev": "node --watch server.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.61.0"
+    "@playwright/test": "^1.61.1"
   },
   "dependencies": {
     "@michaelhart/meshcore-decoder": "^0.3.0",
