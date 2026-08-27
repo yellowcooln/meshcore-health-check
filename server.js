@@ -343,6 +343,7 @@ const APP_DESCRIPTION = envValue(
 );
 const SITE_URL = normalizeSiteUrl(envValue('SITE_URL', ''));
 const CORESCOPE_URL = normalizeSiteUrl(envValue('CORESCOPE_URL', ''));
+const CARTO_BASEMAP_KEY = envValue('CARTO_BASEMAP_KEY', '');
 const DISTANCE_UNIT = normalizeDistanceUnit(envValue('DISTANCE_UNIT', 'mi'));
 const PWA_APP_NAME = 'Mesh Reach';
 const REPO_URL = 'https://github.com/yellowcooln/meshcore-health-check';
@@ -2363,6 +2364,10 @@ function snapshotPayload() {
       connected: mqttConnected,
       broker: dashboardBrokerHost,
       topics: MQTT_TOPICS,
+    },
+    map: {
+      cartoBasemapKey: CARTO_BASEMAP_KEY,
+      darkBasemapAvailable: Boolean(CARTO_BASEMAP_KEY),
     },
     turnstile: {
       enabled: TURNSTILE_ENABLED,

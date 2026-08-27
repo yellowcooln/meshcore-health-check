@@ -30,6 +30,7 @@ process.env.APP_EYEBROW = 'MeshCore Observer Coverage';
 process.env.APP_DESCRIPTION = 'Generate a test code, send it to the configured channel, and watch observer coverage build in real time.';
 process.env.DASH_BROKER_HOST = 'mqtt.example.test:443';
 process.env.CORESCOPE_URL = 'https://analyzer.example.test';
+process.env.CARTO_BASEMAP_KEY = 'test-carto-key';
 process.env.EXTERNAL_LINK_URL = 'javascript:alert(1)';
 process.env.TEST_CHANNEL_NAME = 'health-check';
 process.env.TEST_CHANNEL_SECRET = 'E6D973AAC5101145AD3A3F3A0B3D52EB';
@@ -117,7 +118,7 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
 
   const payload = await response.json();
   assert.equal(payload.site.title, 'MeshCore Observer Coverage');
-  assert.equal(payload.site.version, '1.3.7');
+  assert.equal(payload.site.version, '1.3.8');
   assert.equal(payload.site.coreScopeUrl, 'https://analyzer.example.test');
   assert.equal(payload.site.externalLinkUrl, '');
   assert.equal(payload.testChannel.name, 'health-check');
@@ -126,6 +127,8 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
   assert.equal(payload.mqtt.broker, 'mqtt.example.test:443');
   assert.equal(payload.results.retentionSeconds, 604800);
   assert.equal(payload.observerStats.hashDisplayBytes, 1);
+  assert.equal(payload.map.cartoBasemapKey, 'test-carto-key');
+  assert.equal(payload.map.darkBasemapAvailable, true);
 });
 
 test('GET /app includes server-rendered social meta tags', async () => {

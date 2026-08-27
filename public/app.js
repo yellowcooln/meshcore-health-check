@@ -1335,13 +1335,16 @@ function currentTileLayer() {
   if (!window.L) {
     return null;
   }
-  if (state.uiTheme === 'light') {
+  const cartoBasemapKey = String(state.snapshot?.map?.cartoBasemapKey || '').trim();
+  if (state.uiTheme === 'light' || !cartoBasemapKey) {
     return window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors',
     });
   }
-  return window.L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  const tileUrl = 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png'
+    + `?key=${encodeURIComponent(cartoBasemapKey)}`;
+  return window.L.tileLayer(tileUrl, {
     maxZoom: 19,
     subdomains: 'abcd',
     attribution: '&copy; OpenStreetMap contributors &copy; CARTO',

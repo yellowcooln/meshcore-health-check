@@ -15,11 +15,16 @@ in source files.
 | `APP_DESCRIPTION` | Generated coverage description | Site description and social metadata. |
 | `SITE_URL` | blank | Public site URL used for generated absolute share links and social metadata. Set this when running behind a reverse proxy. |
 | `CORESCOPE_URL` | blank | Optional CoreScope root URL. When set, matched message hashes link to `#/packets/<hash>`. |
+| `CARTO_BASEMAP_KEY` | blank | Public browser key for CARTO Dark Matter map tiles. Without it, the map uses OpenStreetMap tiles while the dashboard can remain in dark mode. |
 | `EXTERNAL_LINK_URL` | blank | Optional HTTP(S) hero/control-center external link URL. Other URL schemes are rejected. |
 | `EXTERNAL_LINK_LABEL` | blank | Label for the optional external link. |
 | `LOG_LEVEL` | `info` | Use `debug` only while troubleshooting ingest or decode behavior. |
 | `TRUST_PROXY` | `1` | Express proxy trust setting. Use `1` behind one trusted reverse proxy or `false` for direct access so client IP rate limits cannot be spoofed with forwarded headers. |
 | `DISTANCE_UNIT` | `mi` | Distance labels for packet-path estimates. Use `mi` or `km`. |
+
+As of August 2026, CARTO requires an API key for Dark Matter raster tiles. Keep
+the project key in `.env`, not Git. CARTO's browser integration exposes the key
+in tile request URLs, so scope it to this project and its deployment hostnames.
 
 ## Storage
 
