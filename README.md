@@ -54,6 +54,7 @@ At minimum, configure MQTT and the test channel in `.env`:
 - `MQTT_TOPIC`
 - `TEST_CHANNEL_NAME`
 - `TEST_CHANNEL_SECRET` or `TEST_CHANNEL_HASH`
+- `CARTO_BASEMAP_KEY` to enable CARTO Dark Matter coverage-map tiles
 
 For full setup steps, read [HOWTO.md](HOWTO.md). For every runtime variable,
 read [ENVIRONMENT.md](ENVIRONMENT.md).
@@ -90,6 +91,8 @@ read [ENVIRONMENT.md](ENVIRONMENT.md).
   change the actual MQTT connection.
 - `CORESCOPE_URL` changes the matched message-hash link to CoreScope
   `#/packets/<hash>` routes.
+- `CARTO_BASEMAP_KEY` enables CARTO Dark Matter tiles. Without it, the coverage
+  map falls back to OpenStreetMap while the dark dashboard theme remains usable.
 - `DISTANCE_UNIT=mi` or `DISTANCE_UNIT=km` controls packet distance labels.
 
 ## Validation

@@ -1,5 +1,13 @@
 # Changes
 
+## v1.3.8
+
+- added `CARTO_BASEMAP_KEY` support for authenticated CARTO Dark Matter map
+  tiles and exposed the public project key through `/api/bootstrap`
+- changed dark-theme map rendering to fall back to OpenStreetMap when no CARTO
+  key is configured instead of requesting unavailable keyless CARTO tiles
+- updated the Docker runtime from Node `22-slim` to `26-slim`
+
 ## v1.3.7
 
 - changed the coverage map to follow the active session's expected observer set

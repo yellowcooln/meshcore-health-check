@@ -24,18 +24,22 @@ function mapObserver(key, label, lat, lon, region) {
   };
 }
 
-function mapBootstrap(observerDirectory) {
+function mapBootstrap(observerDirectory, cartoBasemapKey = 'test-carto-key') {
   return {
     site: {
       title: 'MeshCore Observer Coverage',
       eyebrow: 'MeshCore Observer Coverage',
       headline: 'Check your mesh reach.',
       description: 'Generate a test code, send it to the configured channel, and watch observer coverage build in real time.',
-      version: '1.3.7',
+      version: '1.3.8',
       repoUrl: 'https://github.com/yellowcooln/meshcore-health-check',
       changesUrl: 'https://github.com/yellowcooln/meshcore-health-check/blob/main/CHANGES.md',
     },
     mqtt: { connected: false, broker: 'mqtt.example.test', topics: ['meshcore/BOS/#'] },
+    map: {
+      cartoBasemapKey,
+      darkBasemapAvailable: Boolean(cartoBasemapKey),
+    },
     testChannel: { name: 'health-check', hash: '99' },
     turnstile: { enabled: false, verified: true },
     defaultObserverSource: 'configured',
@@ -87,7 +91,12 @@ function mapSession(expectedObservers) {
   };
 }
 
-async function openMockMapSession(page, observerDirectory, expectedObservers) {
+async function openMockMapSession(
+  page,
+  observerDirectory,
+  expectedObservers,
+  cartoBasemapKey = 'test-carto-key',
+) {
   await page.addInitScript(() => {
     window.WebSocket = class {
       addEventListener() {}
@@ -96,7 +105,7 @@ async function openMockMapSession(page, observerDirectory, expectedObservers) {
   });
   await page.route('**/api/bootstrap', (route) => route.fulfill({
     contentType: 'application/json',
-    body: JSON.stringify(mapBootstrap(observerDirectory)),
+    body: JSON.stringify(mapBootstrap(observerDirectory, cartoBasemapKey)),
   }));
   await page.route('**/api/sessions/map-session', (route) => route.fulfill({
     contentType: 'application/json',
@@ -177,6 +186,41 @@ test('coverage map omits observers with 0,0 coordinates', async ({ page }) => {
 
   await expect(page.locator('#map-observer-note')).toHaveText('0/1 mapped observers reached.');
   await expect(page.locator('#observer-map .leaflet-marker-icon')).toHaveCount(1);
+});
+
+test('dark coverage map sends the configured CARTO API key', async ({ page }) => {
+  const target = mapObserver(MAP_TEST_KEYS.target, 'Target Observer', 42.3601, -71.0589, 'BOS');
+  const cartoRequests = [];
+  await page.route('https://*.basemaps.cartocdn.com/**', async (route) => {
+    cartoRequests.push(route.request().url());
+    await route.abort();
+  });
+
+  await openMockMapSession(page, [target], [target]);
+
+  await expect.poll(() => cartoRequests.length).toBeGreaterThan(0);
+  expect(cartoRequests[0]).toContain('dark_all');
+  expect(cartoRequests[0]).toContain('key=test-carto-key');
+});
+
+test('dark dashboard falls back to OpenStreetMap without a CARTO key', async ({ page }) => {
+  const target = mapObserver(MAP_TEST_KEYS.target, 'Target Observer', 42.3601, -71.0589, 'BOS');
+  const cartoRequests = [];
+  const osmRequests = [];
+  await page.route('https://*.basemaps.cartocdn.com/**', async (route) => {
+    cartoRequests.push(route.request().url());
+    await route.abort();
+  });
+  await page.route('https://*.tile.openstreetmap.org/**', async (route) => {
+    osmRequests.push(route.request().url());
+    await route.abort();
+  });
+
+  await openMockMapSession(page, [target], [target], '');
+
+  await expect.poll(() => osmRequests.length).toBeGreaterThan(0);
+  expect(cartoRequests).toHaveLength(0);
+  await expect(page.locator('body')).toHaveAttribute('data-ui-theme', 'dark');
 });
 
 test('escapes untrusted observer labels in timeline and map popups', async ({ page }) => {
