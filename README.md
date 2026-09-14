@@ -95,6 +95,17 @@ read [ENVIRONMENT.md](ENVIRONMENT.md).
   map falls back to OpenStreetMap while the dark dashboard theme remains usable.
 - `DISTANCE_UNIT=mi` or `DISTANCE_UNIT=km` controls packet distance labels.
 
+## Runtime and dependency maintenance
+
+Docker and CI use Node 24. For local checks, use Node 24 (`nvm use` reads
+`.nvmrc`); other Node majors are not supported.
+
+Dependabot checks npm, GitHub Actions, and Docker weekly and targets `dev`
+for version updates. Node image major updates are ignored so the runtime stays
+on Node 24; patch/minor updates remain enabled. Runtime-major migrations require
+manual review. GitHub reads this policy from `main`, and security-update PRs
+still target the default branch. Security alerts close after fixes reach `main`.
+
 ## Validation
 
 ```bash
@@ -110,7 +121,7 @@ Run `npm run test:smoke` when UI or routing behavior changes.
 
 The app uses `@michaelhart/meshcore-decoder` for runtime MeshCore packet
 decoding. A small postinstall compatibility patch keeps the published CommonJS
-build loading cleanly on Node 18.
+build loading cleanly across module formats.
 
 ## Star History
 

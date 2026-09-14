@@ -1,5 +1,12 @@
 # Changes
 
+## Unreleased
+
+- standardized Docker, CI, and local validation on Node 24, with Dependabot
+  retaining Node patch/minor updates while leaving major migrations to review
+- fixed the qs denial-of-service and array-limit bypass advisories
+- updated Playwright browser testing to 1.63.0
+
 ## v1.3.8
 
 - added `CARTO_BASEMAP_KEY` support for authenticated CARTO Dark Matter map
