@@ -2,43 +2,29 @@
 
 ## v1.4.0
 
-- add a public Privacy page linked from dashboard and verification footers,
-  explaining location, session storage, verification cookies and map providers
-- request fresh high-accuracy browser location, display reported accuracy, and
-  allow same-origin geolocation in Permissions-Policy; location remains opt-in
-- prioritize activity-ranked initial-region defaults over fixed observer keys
-
-- add `INITIAL_REGION` for initial geographic defaults independent of allowed
-  scope; Default Set uses top observers in the selected region and reload restores
-  the initial region, without changing retained scoring or MQTT ingestion
-
-- added optional `ALLOWED_REGION_GROUPS` / `ALLOWED_REGIONS` geographic website
-  scope for observer selection and new sessions, with union matching, startup
-  validation and no unrestricted fallback; MQTT ingestion and retained results
-  remain unchanged
-
-- added an explicit coverage-map location button to select up to 10 nearest
-  active observers, with distance labels and an adjustable 25-500 radius
-  (100 by default), using the existing DISTANCE_UNIT=mi or km setting
-- always restore the website default observer selection on reload; nearby, manual
-  and region choices are temporary while used session history is preserved
-- map markers and viewport now follow the live dashboard selection even when a
-  used code is retained; historical scores, receipts and shared maps remain tied
-  to that code's original targets
-- separate PWA asset revision from release version and bypass stale HTTP assets
-  during installation; online assets remain network-first
-- simplify optional nearby controls with sentence-case map copy and fix mobile
-  decorative splash overflow
-- added map-center selection and a clearly labeled fallback when browser
-  geolocation is denied, unavailable, insecure, or times out
-- kept precise device coordinates in the browser only, with no persistence or
-  backend coordinate payload; proximity is not a guarantee of RF coverage
-- excluded stale/unknown activity and invalid observer positions, with stable
-  distance/key ordering and unchanged selections when no candidates qualify
-- preserved manual/default/region controls and existing unused-code retargeting;
-  selecting observers never transmits a MeshCore message
-- refreshed the PWA asset cache and added unit and mocked browser regression
-  coverage for proximity selection, fallback, privacy, and delayed callbacks
+- added optional browser-location and map-center selection of up to 10 nearest
+  active observers, with distance labels and adjustable search radii using
+  `DISTANCE_UNIT=mi|km`; invalid positions and stale activity are excluded
+- added fresh high-accuracy location requests, browser-reported accuracy, and
+  labeled map-center fallback when permission or positioning is unavailable;
+  location is requested only on click and proximity does not guarantee RF coverage
+- added `ALLOWED_REGION_GROUPS` and `ALLOWED_REGIONS` to scope website observers
+  using bundled or custom GeoJSON worldwide, without filtering MQTT ingestion;
+  invalid configuration and out-of-scope new session targets are rejected
+- added `INITIAL_REGION` independently of the allowed area; initial defaults rank
+  activity within that region, while Default Set ranks within the currently
+  selected region using `OBSERVER_TOP_COUNT`
+- made nearby, manual and region selections temporary: reload restores the site's
+  initial defaults, while retained session targets, scoring and shared results
+  remain unchanged; the dashboard map follows the current selection
+- added a public Privacy page linked from dashboard and verification footers,
+  explaining browser-only device-coordinate processing, local storage, retained
+  results, verification cookies and third-party map/location providers
+- updated PWA asset refresh behavior, responsive map controls, operator guides
+  and environment examples for the new selection workflow
+- expanded unit/API and browser coverage for geographic scope, ranked defaults,
+  region/reload map transitions, location permission and accuracy, privacy access,
+  mobile layout and service-worker upgrades
 
 ## v1.3.9
 

@@ -107,7 +107,8 @@ read [ENVIRONMENT.md](ENVIRONMENT.md).
 - Keep `data/` mounted if observer profiles, observer activity, and share links
   must survive rebuilds.
 - Leave `KNOWN_OBSERVERS` blank to let the app auto-select the top recent
-  observers. Set it to full pubkeys for a fixed default target set.
+  observers. Fixed `KNOWN_OBSERVERS` defaults apply only when `INITIAL_REGION`
+  is blank; an initial region uses activity-ranked defaults instead.
 - Set `OBSERVER_RETENTION_SECONDS=0` to keep known observers visible regardless
   of age.
 - Share links use retained server-side results and remain available until
@@ -118,7 +119,8 @@ read [ENVIRONMENT.md](ENVIRONMENT.md).
   `#/packets/<hash>` routes.
 - `CARTO_BASEMAP_KEY` enables CARTO Dark Matter tiles. Without it, the coverage
   map falls back to OpenStreetMap while the dark dashboard theme remains usable.
-- `DISTANCE_UNIT=mi` or `DISTANCE_UNIT=km` controls packet distance labels.
+- `DISTANCE_UNIT=mi` or `DISTANCE_UNIT=km` controls packet distance labels,
+  nearby distances, and search radii. Browser location accuracy is shown in meters.
 
 ## Runtime and dependency maintenance
 
@@ -160,17 +162,24 @@ build loading cleanly across module formats.
 
 ## Geographic website scope
 
+These settings work worldwide with bundled or custom GeoJSON boundaries. They
+match region labels, not the website title or MQTT topic codes. For example,
+`REGION_NAME_PROPERTY=title` reads a custom feature's `properties.title`; use that
+exact value in `ALLOWED_REGIONS` and `INITIAL_REGION`. Group labels come from
+`REGION_GROUP_PROPERTY`.
+
 `ALLOWED_REGION_GROUPS` and `ALLOWED_REGIONS` are comma-separated, exact,
 case-sensitive labels from `REGIONS_FILE` (using `REGION_GROUP_PROPERTY` and
 `REGION_NAME_PROPERTY`). Both blank means unrestricted. When both are set,
 matching either list is sufficient (union, not intersection).
 
-For a New England-only website, excluding New Jersey:
+For example, allow New England and initially select Massachusetts:
 
 ```env
 REGIONS_FILE=regions/us-states.geojson
 ALLOWED_REGION_GROUPS=New England
 ALLOWED_REGIONS=
+INITIAL_REGION=Massachusetts
 ```
 
 Scope filters the observer directory, region options, configured/dynamic defaults,

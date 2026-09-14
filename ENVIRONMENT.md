@@ -78,9 +78,9 @@ The backend keeps packet handling scoped to the configured test channel.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `KNOWN_OBSERVERS` | blank | Comma-separated full observer pubkeys for a fixed default target set. |
+| `KNOWN_OBSERVERS` | blank | Comma-separated full pubkeys for legacy fixed defaults when `INITIAL_REGION` is blank. Initial-region and selected-region defaults use activity ranking instead. |
 | `OBSERVER_TOP_WINDOW_DAYS` | `7` | Lookback window for dynamic top-observer ranking. |
-| `OBSERVER_TOP_COUNT` | `10` | Number of observers auto-selected when `KNOWN_OBSERVERS` is blank. |
+| `OBSERVER_TOP_COUNT` | `10` | Maximum activity-ranked default observers, including initial-region and selected-region Default Set. Nearby location selection has a separate fixed maximum of 10. |
 | `OBSERVER_HASH_DISPLAY_BYTES` | `1` | UI hash prefix width: `1` = `AB`, `2` = `ABCD`, `3` = `ABCDEF`. |
 | `OBSERVER_ACTIVE_WINDOW_SECONDS` | `900` | Active observer fallback window when no ranking history exists. |
 | `OBSERVER_RETENTION_SECONDS` | `0` | Age cutoff for dashboard/map observers. Set `0` to disable pruning. |
@@ -104,6 +104,9 @@ only receipt observer coordinates are available.
 | `REGIONS_FILE` | blank | GeoJSON FeatureCollection used to assign observer regions. |
 | `REGION_NAME_PROPERTY` | `name` | Feature property used as the child region label. |
 | `REGION_GROUP_PROPERTY` | `group` | Feature property used as the parent group label. |
+| `ALLOWED_REGION_GROUPS` | blank | Comma-separated exact group labels allowed on this website. Combined with `ALLOWED_REGIONS` using union semantics; both blank means unrestricted. |
+| `ALLOWED_REGIONS` | blank | Comma-separated exact region labels allowed on this website. Applies to custom GeoJSON worldwide, not only states. |
+| `INITIAL_REGION` | blank | One exact region label for initial load/reload. Activity-ranked defaults override `KNOWN_OBSERVERS`; must belong to the allowed scope. |
 
 Bundled examples include:
 
@@ -112,7 +115,10 @@ Bundled examples include:
 - `regions/uk.geojson`
 - `regions/de-bundeslaender.geojson`
 
-Leave `REGIONS_FILE` blank to disable region detection.
+Leave `REGIONS_FILE` blank to disable region detection only when allowed-scope
+and initial-region settings are also blank. Geographic settings require a valid
+boundary file. Property labels are case-sensitive and independent of site title.
+For custom `properties.title` labels, set `REGION_NAME_PROPERTY=title`.
 
 ## Turnstile
 
@@ -139,12 +145,13 @@ case-sensitive labels from `REGIONS_FILE` (using `REGION_GROUP_PROPERTY` and
 `REGION_NAME_PROPERTY`). Both blank means unrestricted. When both are set,
 matching either list is sufficient (union, not intersection).
 
-For a New England-only website, excluding New Jersey:
+For example, allow New England and initially select Massachusetts:
 
 ```env
 REGIONS_FILE=regions/us-states.geojson
 ALLOWED_REGION_GROUPS=New England
 ALLOWED_REGIONS=
+INITIAL_REGION=Massachusetts
 ```
 
 Scope filters the observer directory, region options, configured/dynamic defaults,

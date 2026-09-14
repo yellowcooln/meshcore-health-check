@@ -51,8 +51,18 @@ Manual checkboxes, region filters and **Default Set** remain available and cance
 any pending location selection.
 
 Proximity browser tests use mocked geolocation, activity and session fixtures;
-they do not prove GPS accuracy or live MQTT/RF delivery. No new environment
-variables or production authentication exceptions are required.
+they do not prove GPS accuracy or live MQTT/RF delivery. Location requests use
+fresh high-accuracy estimates and show browser-reported accuracy in meters, but
+a desktop browser may still return a coarse position. Check whether the status
+says browser location or map-center fallback. Serve over HTTPS (localhost is
+allowed) and ensure a reverse proxy does not override the app's
+`Permissions-Policy: geolocation=(self)` with a deny rule. Permission remains
+explicit; high accuracy is a request, not a guarantee of GPS.
+
+The footer links to the public `/privacy` page, also accessible before Turnstile
+verification. It explains location processing, browser storage, retained shared
+results, cookies and third-party providers. Operators should review it against
+their own proxy logging and deployment services.
 
 ## Requirements
 
@@ -87,10 +97,13 @@ cp .env.example .env
 - set MQTT connectivity
 - set `TEST_CHANNEL_NAME`
 - set `TEST_CHANNEL_SECRET` or `TEST_CHANNEL_HASH`
-- set `KNOWN_OBSERVERS` only if you want a fixed default observer target
+- set `KNOWN_OBSERVERS` only for fixed defaults with no `INITIAL_REGION`
 - leave `KNOWN_OBSERVERS` blank if the app should auto-select top recent
   observers from packet history
-- set `REGIONS_FILE` if you want region buttons above the observer selector
+- set `REGIONS_FILE` for region controls using bundled or custom GeoJSON
+- optionally set `ALLOWED_REGION_GROUPS` / `ALLOWED_REGIONS` for the allowed area
+- optionally set `INITIAL_REGION` for an activity-ranked initial/reload region;
+  **Default Set** ranks within the region currently selected by the user
 - set `SITE_URL` to the public HTTPS origin when running behind a reverse proxy
 - set `CARTO_BASEMAP_KEY` to enable CARTO Dark Matter tiles for the coverage map
 - keep `TRUST_PROXY=1` behind one trusted reverse proxy, or set it to `false`
@@ -182,8 +195,8 @@ Image tags:
 
 Users can run a check against:
 
-- the fixed `KNOWN_OBSERVERS` target set
-- the dynamic top-observer set when `KNOWN_OBSERVERS` is blank
+- legacy fixed `KNOWN_OBSERVERS` defaults when `INITIAL_REGION` is blank
+- dynamic top observers globally or within the configured initial/selected region
 - a browser-selected custom observer set
 - a configured region group or child region
 
@@ -205,10 +218,12 @@ better name or location, the server writes it back to that file.
 
 Without `data/observer.json`, unnamed observers show as hash prefixes until
 metadata propagates. Observers without coordinates still work for scoring, but
-they do not appear on the map.
+they do not appear on the map. Geographic scope excludes unlocated observers
+from new selections because their membership cannot be established.
 
 The dynamic default observer set is stored in `data/observer-activity.json`.
-When `KNOWN_OBSERVERS` is blank, the app ranks observers over
+For dynamic defaults, including `INITIAL_REGION` and selected-region Default Set,
+the app ranks observers over
 `OBSERVER_TOP_WINDOW_DAYS` and selects up to `OBSERVER_TOP_COUNT` observers.
 
 When path hops can be matched to observers with coordinates, the app estimates
