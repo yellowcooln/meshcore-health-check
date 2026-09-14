@@ -17,6 +17,10 @@ updates:
   - package-ecosystem: docker
     directory: /
     target-branch: dev
+    # Stay on Node 24; future runtime-major migrations require manual review.
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
     schedule:
       interval: weekly
     open-pull-requests-limit: 5
