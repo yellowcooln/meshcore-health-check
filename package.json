@@ -1,6 +1,6 @@
 {
   "name": "mesh-health-check",
-  "version": "1.3.8",
+  "version": "1.3.9",
   "private": true,
   "type": "module",
   "description": "MeshCore observer health checker for #health-check message propagation",
@@ -14,7 +14,7 @@
     "dev": "node --watch server.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.62.1"
+    "@playwright/test": "^1.63.0"
   },
   "dependencies": {
     "@michaelhart/meshcore-decoder": "^0.3.0",
@@ -25,6 +25,6 @@
     "ws": "^8.21.3"
   },
   "engines": {
-    "node": ">=18"
+    "node": ">=24.0.0 <25.0.0"
   }
 }

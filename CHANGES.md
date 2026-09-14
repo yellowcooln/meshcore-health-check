@@ -1,5 +1,17 @@
 # Changes
 
+## v1.3.9
+
+- standardized Docker, CI, and local validation on Node 24, with matching
+  package engine constraints and `.nvmrc` configuration
+- configured Dependabot to retain Node image patch/minor updates while leaving
+  runtime-major migrations to manual review; npm and GitHub Actions updates
+  remain enabled against `dev`
+- updated qs to 6.16.0 to fix the denial-of-service and array-limit bypass
+  advisories
+- updated Playwright browser testing to 1.63.0
+- documented the Node 24 runtime policy and default-branch security alert behavior
+
 ## v1.3.8
 
 - added `CARTO_BASEMAP_KEY` support for authenticated CARTO Dark Matter map
