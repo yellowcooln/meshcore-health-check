@@ -6,7 +6,7 @@
   "description": "MeshCore observer health checker for #health-check message propagation",
   "main": "server.js",
   "scripts": {
-    "check": "node --check server.js && node --check public/app.js && node --check public/nearest-observers.js && node --check public/sw.js && node --check public/turnstile-landing.js",
+    "check": "node --check server.js && node --check public/app.js && node --check public/nearest-observers.js && node --check public/location-refinement.js && node --check public/sw.js && node --check public/turnstile-landing.js",
     "test": "node --test test/*.test.js",
     "test:smoke": "playwright test",
     "postinstall": "node scripts/patch-meshcore-decoder.js",

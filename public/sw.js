@@ -1,5 +1,5 @@
 // Asset revision is independent of the release version; bump for shell changes.
-const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-region-all-5';
+const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-location-refinement-6';
 const CORE_ASSETS = [
   '/',
   '/app',
@@ -8,6 +8,7 @@ const CORE_ASSETS = [
   '/styles.css',
   '/app.js',
   '/nearest-observers.js',
+  '/location-refinement.js',
   '/landing.css',
   '/turnstile-landing.js',
   '/logo.png',

@@ -345,6 +345,10 @@ const SITE_URL = normalizeSiteUrl(envValue('SITE_URL', ''));
 const CORESCOPE_URL = normalizeSiteUrl(envValue('CORESCOPE_URL', ''));
 const CARTO_BASEMAP_KEY = envValue('CARTO_BASEMAP_KEY', '');
 const DISTANCE_UNIT = normalizeDistanceUnit(envValue('DISTANCE_UNIT', 'mi'));
+const NEARBY_DEFAULT_RADIUS = Number(envValue('NEARBY_DEFAULT_RADIUS', '100'));
+if (![5, 10, 15, 20, 25, 50, 75, 100, 150, 200].includes(NEARBY_DEFAULT_RADIUS)) {
+  throw new Error('NEARBY_DEFAULT_RADIUS must be one of 5, 10, 15, 20, 25, 50, 75, 100, 150, 200 (in DISTANCE_UNIT)');
+}
 const PWA_APP_NAME = 'Mesh Reach';
 const REPO_URL = 'https://github.com/yellowcooln/meshcore-health-check';
 const EXTERNAL_LINK_URL = normalizeSiteUrl(envValue('EXTERNAL_LINK_URL', ''));
@@ -2425,6 +2429,7 @@ function snapshotPayload() {
       topCount: OBSERVER_TOP_COUNT,
       hashDisplayBytes: OBSERVER_HASH_DISPLAY_BYTES,
       distanceUnit: DISTANCE_UNIT,
+      nearbyDefaultRadius: NEARBY_DEFAULT_RADIUS,
     },
     results: {
       retentionSeconds: Math.round(RESULT_RETENTION_MS / 1000),

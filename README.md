@@ -36,8 +36,8 @@ manual and region choices are temporary; location is optional and only requested
 on click. Used session history remains available without changing the next-code defaults.
 
 On the coverage map, click **Use my location** to select up to 10 nearest active
-observers within the displayed radius (100 by default; adjustable from 25 to
-500 in the configured `DISTANCE_UNIT=mi` or `km`). No permission is requested on page load. **Use map center** lets you pan
+observers within the displayed radius (`NEARBY_DEFAULT_RADIUS=100` by default;
+options 5, 10, 15, 20, 25, 50, 75, 100, 150 and 200 in `DISTANCE_UNIT=mi|km`). No permission is requested on page load. **Use map center** lets you pan
 to an area without sharing device location; it is also the labeled fallback if
 geolocation fails or requires HTTPS. Distances use the same environment-configured unit as packet estimates, but are straight-line distances, not
 radio-path estimates: **proximity does not guarantee RF coverage**.
@@ -53,6 +53,14 @@ Precise device coordinates are only used for browser-side distance calculations;
 they are not stored or sent to the backend. Only selected observer keys follow
 the normal session workflow. See [HOWTO.md](HOWTO.md#select-nearby-observers) for
 activity rules, privacy boundaries and troubleshooting.
+
+
+Location refinement lasts at most 12 seconds and keeps the most accurate fix. A
+fix within 1 km reported accuracy can finish early; coarser or unknown accuracy
+requires **Use approximate location** or **Use map center** without changing
+targets automatically. Desktop network estimates cannot be made into GPS by this
+app. Changing radius, region or manual targets cancels pending location work.
+The pending fix is memory-only and discarded on acceptance, cancellation or reload.
 
 ## Quick Start
 
@@ -120,7 +128,7 @@ read [ENVIRONMENT.md](ENVIRONMENT.md).
 - `CARTO_BASEMAP_KEY` enables CARTO Dark Matter tiles. Without it, the coverage
   map falls back to OpenStreetMap while the dark dashboard theme remains usable.
 - `DISTANCE_UNIT=mi` or `DISTANCE_UNIT=km` controls packet distance labels,
-  nearby distances, and search radii. Browser location accuracy is shown in meters.
+  nearby distances, and search radii. Browser location accuracy uses the configured distance unit.
 
 ## Runtime and dependency maintenance
 
@@ -211,5 +219,5 @@ it preserves that region. Reload restores the configured initial region. Region
 buttons may select all observers there; Default Set narrows them to the top set.
 No precise device coordinates are stored or sent to the server.
 Location requests a fresh high-accuracy estimate and displays browser-reported
-accuracy in meters; GPS accuracy is not guaranteed. The public `/privacy` page
+accuracy in the configured distance unit; GPS accuracy is not guaranteed. The public `/privacy` page
 explains local storage, retained results, verification cookies and map providers.

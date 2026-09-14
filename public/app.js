@@ -1,4 +1,5 @@
 import { nearestObservers } from './nearest-observers.js';
+import { refineLocation } from './location-refinement.js';
 
 const SESSION_STORAGE_KEY = 'mesh-health-check-session-id';
 const SESSION_HISTORY_STORAGE_KEY = 'mesh-health-check-session-history';
@@ -111,6 +112,9 @@ const state = {
   refreshInFlight: false,
   observerAllowlistSignature: '',
   nearbyRequest: 0,
+  nearbyCancel: null,
+  nearbyApproximate: null,
+  nearbyRadiusInitialized: false,
   nearbyMessage: '',
   nearbyMatches: [],
   map: {
@@ -1320,6 +1324,10 @@ function mapKnownObservers(session) {
 
 function clearNearbySelection() {
   state.nearbyRequest += 1;
+  state.nearbyCancel?.();
+  state.nearbyCancel = null;
+  state.nearbyApproximate = null;
+  document.querySelector('#nearby-approximate').hidden = true;
   state.nearbyMessage = '';
   state.nearbyMatches = [];
   if (ui.nearbyLocation) ui.nearbyLocation.disabled = false;
@@ -1332,6 +1340,10 @@ function nearbyDistanceUnit() {
 function renderNearbySelection() {
   if (!ui.nearbyStatus || !ui.nearbyResults) return;
   const unit = nearbyDistanceUnit();
+  if (state.snapshot && !state.nearbyRadiusInitialized) {
+    ui.nearbyRadius.value = String(state.snapshot.observerStats?.nearbyDefaultRadius || 100);
+    state.nearbyRadiusInitialized = true;
+  }
   for (const option of ui.nearbyRadius.options) option.textContent = `${option.value} ${unit}`;
   ui.nearbyStatus.textContent = state.nearbyMessage
     || `Optional: find nearby observers for this visit. Current target: ${effectiveObserverKeysForCreate().length} observers.`;
@@ -1391,33 +1403,39 @@ function requestNearbyLocation() {
     return;
   }
   ui.nearbyLocation.disabled = true;
-  state.nearbyMessage = 'Requesting location permission... You can use map center instead.';
+  state.nearbyMessage = 'Refining browser location for up to 12 seconds. You can use map center instead.';
   renderNearbySelection();
-  const fallback = (error) => {
+  state.nearbyCancel = refineLocation({ geolocation: navigator.geolocation, complete: ({ fix, approximate, error }) => {
     if (request !== state.nearbyRequest) return;
-    const reason = error?.code === 1 ? 'denied' : error?.code === 3 ? 'timed out' : 'unavailable';
-    selectNearbyMapCenter(`Location ${reason}. Using map center. `);
-  };
-  try {
-    navigator.geolocation.getCurrentPosition((position) => {
-      if (request !== state.nearbyRequest) return;
-      const lat = position?.coords?.latitude;
-      const lon = position?.coords?.longitude;
-      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
-        fallback();
-        return;
-      }
-      const accuracy = position?.coords?.accuracy;
-      const accuracyNote = Number.isFinite(accuracy) && accuracy >= 0
-        ? `Browser-reported accuracy: about ${Math.round(accuracy)} m. `
-        : 'Browser accuracy unavailable. ';
-      selectNearbyObservers({ lat, lon }, 'your location', `${accuracyNote}Location is an estimate, not guaranteed GPS. `);
-    }, fallback, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
-  } catch {
-    fallback();
-  }
+    ui.nearbyLocation.disabled = false;
+    if (!fix) {
+      const reason = error?.code === 1 ? 'denied' : error?.code === 3 ? 'timed out' : 'unavailable';
+      selectNearbyMapCenter(`Location ${reason}. Using map center. `);
+      return;
+    }
+    const unit = nearbyDistanceUnit();
+    const distance = fix.accuracy / 1000 * (unit === 'mi' ? 0.621371 : 1);
+    const accuracyNote = Number.isFinite(distance)
+      ? `Browser-reported accuracy: about ${distance.toFixed(distance < 1 ? 2 : 1)} ${unit}. `
+      : 'Browser accuracy unavailable. ';
+    if (approximate) {
+      state.nearbyApproximate = { fix, accuracyNote };
+      state.nearbyMessage = `${accuracyNote}This location is approximate. Use it or choose map center; selection unchanged.`;
+      document.querySelector('#nearby-approximate').hidden = false;
+      renderNearbySelection();
+    } else {
+      selectNearbyObservers(fix, 'browser location estimate', accuracyNote);
+    }
+  } });
 }
 
+window.addEventListener('pagehide', clearNearbySelection);
+document.querySelector('#nearby-approximate')?.addEventListener('click', () => {
+  const pending = state.nearbyApproximate;
+  if (!pending) return;
+  clearNearbySelection();
+  selectNearbyObservers(pending.fix, 'approximate browser location', pending.accuracyNote);
+});
 ui.nearbyLocation?.addEventListener('click', requestNearbyLocation);
 ui.nearbyCenter?.addEventListener('click', () => {
   if (!state.snapshot || isSharePage()) return;

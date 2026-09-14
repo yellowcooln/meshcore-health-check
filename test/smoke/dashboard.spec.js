@@ -12,13 +12,16 @@ async function openNearbyFixture(page, { mode = 'success', rows, bootstrapOverri
     window.WebSocket = class { addEventListener() {} close() {} };
     window.geoCalls = 0;
     Object.defineProperty(navigator, 'geolocation', { value: mode === 'unavailable' ? undefined : {
-      getCurrentPosition(success, failure, options) {
+      clearWatch() { window.geoCleared = (window.geoCleared || 0) + 1; },
+      watchPosition(success, failure, options) {
         window.geoOptions = options;
         window.geoCalls++;
         if (mode === 'denied') failure({ code: 1 });
         else if (mode === 'timeout') failure({ code: 3 });
         else if (mode === 'delayed') window.completeGeo = () => success({ coords: { latitude: 42, longitude: -71 } });
+        else if (mode === 'coarse') { window.completeGeo = success; success({ coords: { latitude: 42, longitude: -71, accuracy: 50000 } }); }
         else success({ coords: { latitude: 42, longitude: -71, accuracy: 25 } });
+        return 7;
       },
     } });
     if (mode === 'insecure') Object.defineProperty(window, 'isSecureContext', { value: false });
@@ -40,8 +43,49 @@ test('location requests high accuracy and displays browser accuracy', async ({ p
   await openNearbyFixture(page);
   await page.getByRole('button', { name: 'Use my location' }).click();
   expect(await page.evaluate(() => window.geoOptions)).toMatchObject({ enableHighAccuracy: true, maximumAge: 0 });
-  await expect(page.locator('#nearby-status')).toContainText('25 m');
+  await expect(page.locator('#nearby-status')).toContainText('0.02 mi');
 });
+
+test('coarse location requires explicit acceptance and cleans up watch', async ({ page }) => {
+  await openNearbyFixture(page, { mode: 'coarse' });
+  await page.clock.install();
+  await page.locator('#nearby-location').click();
+  await expect(page.locator('#nearby-results li')).toHaveCount(0);
+  await page.clock.fastForward(12001);
+  await expect(page.locator('#nearby-status')).toContainText('31.1 mi');
+  await expect(page.locator('#nearby-status')).toContainText('selection unchanged');
+  await expect(page.locator('#nearby-results li')).toHaveCount(0);
+  expect(await page.evaluate(() => window.geoCleared)).toBe(1);
+  await page.locator('#nearby-approximate').click();
+  await expect(page.locator('#nearby-results li')).toHaveCount(10);
+  await expect(page.locator('#nearby-approximate')).toBeHidden();
+});
+
+test('improved browser fix completes early without approximate confirmation', async ({ page }) => {
+  await openNearbyFixture(page, { mode: 'coarse' });
+  await page.locator('#nearby-location').click();
+  await page.evaluate(() => window.completeGeo({ coords: { latitude: 42, longitude: -71, accuracy: 25 } }));
+  await expect(page.locator('#nearby-results li')).toHaveCount(10);
+  await expect(page.locator('#nearby-approximate')).toBeHidden();
+  expect(await page.evaluate(() => window.geoCleared)).toBe(1);
+});
+
+for (const unit of ['mi', 'km']) {
+  test(`configured default reload and 5 ${unit} filtering`, async ({ page }) => {
+    const rows = [mapObserver('A'.repeat(64), 'Six km away', 42.054, -71, null)];
+    rows[0].lastPacketAt = Date.now();
+    await openNearbyFixture(page, { rows, bootstrapOverrides: { observerStats: { distanceUnit: unit, nearbyDefaultRadius: 15, windowSeconds: 14400 } } });
+    await expect(page.locator('#nearby-radius')).toHaveValue('15');
+    expect(await page.locator('#nearby-radius option').evaluateAll((options) => options.map((o) => o.value))).toEqual(['5','10','15','20','25','50','75','100','150','200']);
+    await page.locator('#nearby-radius').selectOption('5');
+    await page.locator('#nearby-location').click();
+    await expect(page.locator('#nearby-radius')).toHaveValue('5');
+    await expect(page.locator('#nearby-results li')).toHaveCount(unit === 'mi' ? 1 : 0);
+    await page.reload();
+    await expect(page.locator('#nearby-radius')).toHaveValue('15');
+    expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+  });
+}
 
 test('public privacy page and footer work without authentication', async ({ page, request }) => {
   const response = await request.get('/privacy');

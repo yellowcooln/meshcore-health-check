@@ -20,7 +20,8 @@ in source files.
 | `EXTERNAL_LINK_LABEL` | blank | Label for the optional external link. |
 | `LOG_LEVEL` | `info` | Use `debug` only while troubleshooting ingest or decode behavior. |
 | `TRUST_PROXY` | `1` | Express proxy trust setting. Use `1` behind one trusted reverse proxy or `false` for direct access so client IP rate limits cannot be spoofed with forwarded headers. |
-| `DISTANCE_UNIT` | `mi` | Distance labels for packet-path estimates and nearby observer distances/search radii. Use `mi` or `km`; the nearby radius defaults to 100 in that unit. |
+| `DISTANCE_UNIT` | `mi` | Distance labels for packet-path estimates and nearby observer distances/search radii. Use `mi` or `km`; the nearby radius uses that unit. |
+| `NEARBY_DEFAULT_RADIUS` | `100` | Initial/reload nearby radius in `DISTANCE_UNIT`. Allowed values: 5, 10, 15, 20, 25, 50, 75, 100, 150, 200. Other values fail startup with an explicit error. Snapshot updates preserve the visitor's choice. |
 
 As of August 2026, CARTO requires an API key for Dark Matter raster tiles. Keep
 the project key in `.env`, not Git. CARTO's browser integration exposes the key
@@ -185,5 +186,5 @@ buttons may select all observers there; Default Set narrows them to the top set.
 ranks across that entire area, not the configured initial region.
 No precise device coordinates are stored or sent to the server.
 Location requests a fresh high-accuracy estimate and displays browser-reported
-accuracy in meters; GPS accuracy is not guaranteed. The public `/privacy` page
+accuracy in the configured distance unit; GPS accuracy is not guaranteed. The public `/privacy` page
 explains local storage, retained results, verification cookies and map providers.

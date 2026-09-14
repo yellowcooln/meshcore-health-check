@@ -11,6 +11,8 @@
 .nearby-note, #map-observer-note { font-size: 0.875rem; line-height: 1.5; text-transform: none; letter-spacing: normal; color: var(--muted); }
 .nearby-actions > * { min-width: 0; max-width: 100%; }
 .nearby-actions .control-button { white-space: normal; text-transform: none; letter-spacing: normal; }
+#nearby-approximate[hidden] { display: none; }
+
 .nearby-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 14px 0; }
 .nearby-actions label { display: grid; gap: 6px; font-size: 0.85rem; color: var(--text); }
 .nearby-actions select {

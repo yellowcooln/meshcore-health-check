@@ -4,8 +4,10 @@
 
 - added optional browser-location and map-center selection of up to 10 nearest
   active observers, with distance labels and adjustable search radii using
-  `DISTANCE_UNIT=mi|km`; invalid positions and stale activity are excluded
-- added fresh high-accuracy location requests, browser-reported accuracy, and
+  `DISTANCE_UNIT=mi|km` and `NEARBY_DEFAULT_RADIUS=100`; radii span 5 to 200
+  with finer steps, and invalid positions and stale activity are excluded
+- added bounded 12-second high-accuracy refinement retaining the best browser
+  estimate, explicit acceptance for coarse fixes, browser-reported accuracy, and
   labeled map-center fallback when permission or positioning is unavailable;
   location is requested only on click and proximity does not guarantee RF coverage
 - added `ALLOWED_REGION_GROUPS` and `ALLOWED_REGIONS` to scope website observers

@@ -12,8 +12,8 @@ summarizes observer coverage.
 
 ## Select Nearby Observers
 
-1. Open the coverage map and choose a **Search radius**: 25, 50, 100 (default),
-   250 or 500, in the website `DISTANCE_UNIT` (`mi` by default, or `km`). Radius changes do not change the current selection until you
+1. Open the coverage map and choose a **Search radius**: 5, 10, 15, 20, 25, 50,
+   75, 100, 150 or 200 (`NEARBY_DEFAULT_RADIUS=100` by default), in the website `DISTANCE_UNIT` (`mi` by default, or `km`). Radius changes do not change the current selection until you
    click a location-source button again.
 2. Click **Use my location** and allow the browser prompt, or pan the map and
    click **Use map center**. HTTPS (or localhost) is required for geolocation.
@@ -52,7 +52,7 @@ any pending location selection.
 
 Proximity browser tests use mocked geolocation, activity and session fixtures;
 they do not prove GPS accuracy or live MQTT/RF delivery. Location requests use
-fresh high-accuracy estimates and show browser-reported accuracy in meters, but
+fresh high-accuracy estimates and show browser-reported accuracy in the configured distance unit, but
 a desktop browser may still return a coarse position. Check whether the status
 says browser location or map-center fallback. Serve over HTTPS (localhost is
 allowed) and ensure a reverse proxy does not override the app's
@@ -63,6 +63,14 @@ The footer links to the public `/privacy` page, also accessible before Turnstile
 verification. It explains location processing, browser storage, retained shared
 results, cookies and third-party providers. Operators should review it against
 their own proxy logging and deployment services.
+
+
+Location refinement lasts at most 12 seconds and keeps the most accurate fix. A
+fix within 1 km reported accuracy can finish early; coarser or unknown accuracy
+requires **Use approximate location** or **Use map center** without changing
+targets automatically. Desktop network estimates cannot be made into GPS by this
+app. Changing radius, region or manual targets cancels pending location work.
+The pending fix is memory-only and discarded on acceptance, cancellation or reload.
 
 ## Requirements
 
@@ -335,5 +343,5 @@ it preserves that region. Reload restores the configured initial region. Region
 buttons may select all observers there; Default Set narrows them to the top set.
 No precise device coordinates are stored or sent to the server.
 Location requests a fresh high-accuracy estimate and displays browser-reported
-accuracy in meters; GPS accuracy is not guaranteed. The public `/privacy` page
+accuracy in the configured distance unit; GPS accuracy is not guaranteed. The public `/privacy` page
 explains local storage, retained results, verification cookies and map providers.

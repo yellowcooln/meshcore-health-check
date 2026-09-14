@@ -132,6 +132,7 @@ test('GET /api/bootstrap returns site and channel configuration', async () => {
   assert.equal(payload.mqtt.broker, 'mqtt.example.test:443');
   assert.equal(payload.results.retentionSeconds, 604800);
   assert.equal(payload.observerStats.hashDisplayBytes, 1);
+  assert.equal(payload.observerStats.nearbyDefaultRadius, 100);
   assert.equal(payload.map.cartoBasemapKey, 'test-carto-key');
   assert.equal(payload.map.darkBasemapAvailable, true);
 });
