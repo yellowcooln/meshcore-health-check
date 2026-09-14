@@ -23,6 +23,9 @@ async function fixture(overrides, run) {
     ALLOWED_REGION_GROUPS: '', ALLOWED_REGIONS: '', INITIAL_REGION: '', KNOWN_OBSERVERS: '', OBSERVER_TOP_COUNT: '10',
     RATE_LIMIT_MAX: '100', ...overrides,
   });
+  if (overrides.INITIAL_REGION === 'Massachusetts' && overrides.OBSERVER_TOP_COUNT === '1') fs.writeFileSync(process.env.OBSERVER_ACTIVITY_FILE, JSON.stringify({ version: 1, observers: {
+    ['4'.repeat(64)]: { days: { [new Date().toISOString().slice(0, 10)]: 10 }, lastPacketAt: Date.now() },
+  } }));
   fs.writeFileSync(process.env.RESULTS_FILE, JSON.stringify({ version: 1, sessions: [{
     id: 'historical', code: 'MHC-AABBCC', createdAt: Date.now(), expiresAt: Date.now() + 60000,
     status: 'active', useCount: 1, maxUses: 3, allowlistEnabled: true,
@@ -104,6 +107,9 @@ test('MA defaults keep NE directory and explicit CT selection; refresh and sessi
   assert.deepEqual(b.availableRegions, ['Connecticut', 'Maine', 'Massachusetts', 'New Hampshire']);
   assert.deepEqual(b.defaultObserverKeys, [keys[0]], 'filter MA before ranking limit');
   assert.deepEqual(b.topObserverKeysByRegion.Connecticut, ['4'.repeat(64)]);
+  assert.equal(b.topObserverKeys.length, 1);
+  assert.ok(['4', '5', '6'].some((digit) => b.topObserverKeys[0] === digit.repeat(64)));
+  assert.deepEqual(b.topObserverKeysByGroup['New England'], b.topObserverKeys);
   const selected = await create({ expectedObserverKeys: ['4'.repeat(64)] });
   assert.equal(selected.status, 201);
   assert.deepEqual((await selected.json()).expectedObservers.map((o) => o.key), ['4'.repeat(64)]);

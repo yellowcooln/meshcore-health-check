@@ -102,6 +102,7 @@ const state = {
   selectedObserverKeys: [],
   selectedRegionGroup: null,
   selectedRegion: null,
+  regionSelectionApplied: false,
   uiTheme: loadUiTheme(),
   sessions: new Map(),
   socket: null,
@@ -308,6 +309,12 @@ function customSelectedObserverKeys() {
 function defaultObserverKeys() {
   if (state.selectedRegion && state.snapshot?.topObserverKeysByRegion?.[state.selectedRegion]) {
     return state.snapshot.topObserverKeysByRegion[state.selectedRegion];
+  }
+  if (state.selectedRegionGroup && state.snapshot?.topObserverKeysByGroup?.[state.selectedRegionGroup]) {
+    return state.snapshot.topObserverKeysByGroup[state.selectedRegionGroup];
+  }
+  if (state.regionSelectionApplied && Array.isArray(state.snapshot?.topObserverKeys)) {
+    return state.snapshot.topObserverKeys;
   }
   return configuredDefaultObserverKeys();
 }
@@ -884,7 +891,7 @@ async function createSession() {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
-        expectedObserverKeys: usingDefaultObserverSet() ? [] : customSelectedObserverKeys(),
+        expectedObserverKeys: effectiveObserverKeysForCreate(),
       }),
     });
     const session = await response.json();
@@ -1120,11 +1127,8 @@ function reconcileRegionSelection(snapshot) {
 
 function applyRegionSelection() {
   clearNearbySelection();
-  if (state.selectedRegionGroup === null && state.selectedRegion === null) {
-    state.selectedObserverKeys = [];
-  } else {
-    state.selectedObserverKeys = observerKeysForRegionSelection(state.snapshot);
-  }
+  state.regionSelectionApplied = true;
+  state.selectedObserverKeys = observerKeysForRegionSelection(state.snapshot);
   render();
   scheduleSessionRetarget();
 }
@@ -1137,7 +1141,7 @@ function observerKeysForRegionSelection(snapshot = state.snapshot) {
         return observer.region === state.selectedRegion
           && (!state.selectedRegionGroup || observer.regionGroup === state.selectedRegionGroup);
       }
-      return observer.regionGroup === state.selectedRegionGroup;
+      return !state.selectedRegionGroup || observer.regionGroup === state.selectedRegionGroup;
     })
     .map((observer) => observer.key);
 }

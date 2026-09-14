@@ -65,6 +65,38 @@ test('Default Set ranks within selected state and reload restores MA markers', a
   await expect.poll(async () => (await mappedState(page)).markers.map((m) => /MA observer/.test(m.popup))).toEqual([true]);
 });
 
+test('All selects the allowed scope, Default Set ranks that scope, reload restores MA', async ({ page }) => {
+  const targets = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/sessions') && request.method() === 'POST') {
+      targets.push(request.postDataJSON().expectedObserverKeys);
+    }
+  });
+  await captureMap(page);
+  const rows = [
+    mapObserver('A'.repeat(64), 'MA observer', 42, -71, 'Massachusetts'),
+    mapObserver('B'.repeat(64), 'CT top', 41.6, -72.7, 'Connecticut'),
+    mapObserver('C'.repeat(64), 'ME observer', 44.3, -69.8, 'Maine'),
+    mapObserver('D'.repeat(64), 'NH observer', 43.2, -71.5, 'New Hampshire'),
+  ];
+  await openNearbyFixture(page, { rows, bootstrapOverrides: {
+    defaultRegions: ['Massachusetts'], defaultObserverKeys: [rows[0].key], defaultObservers: [rows[0]],
+    defaultObserverSource: 'top-window', topObserverKeys: [rows[1].key],
+    topObserverKeysByRegion: { Massachusetts: [rows[0].key] },
+  } });
+  await expect.poll(async () => (await mappedState(page)).markers.map((m) => /MA observer/.test(m.popup))).toEqual([true]);
+  await page.getByRole('button', { name: /^All(?: regions)?\s/ }).click();
+  await expect(page.locator('#observer-allowlist input:checked')).toHaveCount(4);
+  await expect.poll(async () => (await mappedState(page)).markers.length).toBe(4);
+  const all = await mappedState(page);
+  for (const row of rows) expect(all.markers.some((m) => m.popup.includes(row.name) && m.visible)).toBe(true);
+  await page.getByRole('button', { name: 'Default Set', exact: true }).click();
+  await expect.poll(async () => (await mappedState(page)).markers.map((m) => /CT top/.test(m.popup))).toEqual([true]);
+  await expect.poll(() => targets.at(-1)).toEqual([rows[1].key]);
+  await page.reload();
+  await expect.poll(async () => (await mappedState(page)).markers.map((m) => /MA observer/.test(m.popup))).toEqual([true]);
+});
+
 async function captureMap(page) {
   await page.route('**/vendor/leaflet/leaflet.js', async (route) => {
     const response = await route.fetch();

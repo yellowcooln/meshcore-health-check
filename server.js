@@ -2430,6 +2430,16 @@ function snapshotPayload() {
       retentionSeconds: Math.round(RESULT_RETENTION_MS / 1000),
     },
     defaultRegions,
+    topObserverKeys: (() => {
+      const keys = new Set(directory.map((o) => o.key));
+      const ranked = topObserverKeys(Date.now(), (key) => keys.has(key));
+      return ranked.length ? ranked : activeObserverKeys().filter((key) => keys.has(key)).slice(0, OBSERVER_TOP_COUNT);
+    })(),
+    topObserverKeysByGroup: Object.fromEntries([...new Set(directory.map((o) => o.regionGroup).filter(Boolean))].map((group) => {
+      const keys = new Set(directory.filter((o) => o.regionGroup === group).map((o) => o.key));
+      const ranked = topObserverKeys(Date.now(), (key) => keys.has(key));
+      return [group, ranked.length ? ranked : activeObserverKeys().filter((key) => keys.has(key)).slice(0, OBSERVER_TOP_COUNT)];
+    })),
     topObserverKeysByRegion: Object.fromEntries([...new Set(directory.map((o) => o.region).filter(Boolean))].map((region) => {
       const keys = new Set(directory.filter((o) => o.region === region).map((o) => o.key));
       const ranked = topObserverKeys(Date.now(), (key) => keys.has(key));

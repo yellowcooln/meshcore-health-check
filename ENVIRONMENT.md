@@ -181,6 +181,8 @@ The dashboard's **Default Set** uses recent top observers within the currently
 selected region (active-window fallback when no history), not a fixed pubkey list;
 it preserves that region. Reload restores the configured initial region. Region
 buttons may select all observers there; Default Set narrows them to the top set.
+**All** selects every observer in the allowed website area. Default Set after All
+ranks across that entire area, not the configured initial region.
 No precise device coordinates are stored or sent to the server.
 Location requests a fresh high-accuracy estimate and displays browser-reported
 accuracy in meters; GPS accuracy is not guaranteed. The public `/privacy` page
