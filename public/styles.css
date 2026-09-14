@@ -1,3 +1,31 @@
+.nearby-controls {
+  margin: 14px 0;
+  padding: 16px;
+  border: 1px solid var(--line-strong);
+  border-radius: 16px;
+  background: var(--panel-soft);
+}
+
+.nearby-controls h3 { margin: 0 0 8px; font-size: 1rem; }
+.nearby-controls { min-width: 0; }
+.nearby-note, #map-observer-note { font-size: 0.875rem; line-height: 1.5; text-transform: none; letter-spacing: normal; color: var(--muted); }
+.nearby-actions > * { min-width: 0; max-width: 100%; }
+.nearby-actions .control-button { white-space: normal; text-transform: none; letter-spacing: normal; }
+.nearby-actions { display: flex; flex-wrap: wrap; align-items: end; gap: 12px; margin: 14px 0; }
+.nearby-actions label { display: grid; gap: 6px; font-size: 0.85rem; color: var(--text); }
+.nearby-actions select {
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 10px;
+  background: var(--bg-alt);
+  color: var(--text);
+  font: inherit;
+}
+.nearby-results { margin: 10px 0 0; padding-left: 24px; color: var(--text); font-size: 0.85rem; }
+.nearby-results:empty { display: none; }
+.nearby-results li { padding: 3px 0; overflow-wrap: anywhere; }
+
 :root {
   --bg: #060a11;
   --bg-deep: #0a1018;
@@ -2551,7 +2579,7 @@ body[data-page-mode="share"] .ledger-panel .history-list {
 
 @media (max-width: 720px) {
   .splash-scene {
-    inset: -36px -18px auto;
+    inset: -36px 0 auto;
     height: 430px;
   }
 

@@ -1,5 +1,249 @@
 import { expect, test } from '@playwright/test';
 
+// These proximity tests use synthetic observer/activity and geolocation fixtures,
+// not live MQTT reception or a physical device location.
+async function openNearbyFixture(page, { mode = 'success', rows, bootstrapOverrides = {} } = {}) {
+  const now = Date.now();
+  const observers = rows || Array.from({ length: 12 }, (_, i) => ({
+    ...mapObserver((i + 1).toString(16).padStart(64, '0'), `Nearby ${i + 1}`, 42, -71, null),
+    lastPacketAt: now - 1000,
+  })).reverse();
+  await page.addInitScript((mode) => {
+    window.WebSocket = class { addEventListener() {} close() {} };
+    window.geoCalls = 0;
+    Object.defineProperty(navigator, 'geolocation', { value: mode === 'unavailable' ? undefined : {
+      getCurrentPosition(success, failure, options) {
+        window.geoOptions = options;
+        window.geoCalls++;
+        if (mode === 'denied') failure({ code: 1 });
+        else if (mode === 'timeout') failure({ code: 3 });
+        else if (mode === 'delayed') window.completeGeo = () => success({ coords: { latitude: 42, longitude: -71 } });
+        else success({ coords: { latitude: 42, longitude: -71, accuracy: 25 } });
+      },
+    } });
+    if (mode === 'insecure') Object.defineProperty(window, 'isSecureContext', { value: false });
+  }, mode);
+  await page.route('**/api/bootstrap', (route) => route.fulfill({ json: { ...mapBootstrap(observers, ''), ...bootstrapOverrides } }));
+  let session;
+  await page.route('**/api/sessions', (route) => {
+    const keys = route.request().postDataJSON().expectedObserverKeys;
+    session = { ...mapSession(keys.length ? observers.filter((o) => keys.includes(o.key)) : observers), status: 'waiting' };
+    return route.fulfill({ json: session });
+  });
+  await page.route('**/api/sessions/map-session', (route) => route.fulfill({ json: session }));
+  await page.goto('/app');
+  await expect(page.locator('#session-code')).toContainText('MHC-');
+  return observers;
+}
+
+test('location requests high accuracy and displays browser accuracy', async ({ page }) => {
+  await openNearbyFixture(page);
+  await page.getByRole('button', { name: 'Use my location' }).click();
+  expect(await page.evaluate(() => window.geoOptions)).toMatchObject({ enableHighAccuracy: true, maximumAge: 0 });
+  await expect(page.locator('#nearby-status')).toContainText('25 m');
+});
+
+test('public privacy page and footer work without authentication', async ({ page, request }) => {
+  const response = await request.get('/privacy');
+  expect(response.status()).toBe(200);
+  await page.goto('/app');
+  await page.getByRole('link', { name: 'Privacy', exact: true }).click();
+  await expect(page.getByRole('heading', { name: 'Privacy', exact: true })).toBeVisible();
+});
+
+test('Default Set ranks within selected state and reload restores MA markers', async ({ page }) => {
+  await captureMap(page);
+  const rows = [mapObserver('A'.repeat(64), 'MA observer', 42, -71, 'Massachusetts'), mapObserver('B'.repeat(64), 'CT top', 41.6, -72.7, 'Connecticut'), mapObserver('C'.repeat(64), 'CT lower', 41.5, -72.8, 'Connecticut')];
+  await openNearbyFixture(page, { rows, bootstrapOverrides: {
+    defaultRegions: ['Massachusetts'], defaultObserverKeys: [rows[0].key], defaultObservers: [rows[0]], defaultObserverSource: 'top-window',
+    topObserverKeysByRegion: { Massachusetts: [rows[0].key], Connecticut: [rows[1].key] },
+  } });
+  await page.getByRole('button', { name: /^Connecticut/ }).click();
+  await page.getByRole('button', { name: 'Default Set', exact: true }).click();
+  await expect.poll(async () => (await mappedState(page)).markers.map((m) => /CT top/.test(m.popup))).toEqual([true]);
+  await page.reload();
+  await expect.poll(async () => (await mappedState(page)).markers.map((m) => /MA observer/.test(m.popup))).toEqual([true]);
+});
+
+async function captureMap(page) {
+  await page.route('**/vendor/leaflet/leaflet.js', async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({ response, body: `${await response.text()}\nconst originalMap = L.map; L.map = (...args) => (window.testMap = originalMap(...args));` });
+  });
+}
+
+async function mappedState(page) {
+  await page.waitForFunction(() => window.testMap);
+  return page.evaluate(() => {
+    const markers = [];
+    window.testMap.eachLayer((layer) => {
+      if (layer instanceof L.Marker) markers.push({ popup: layer.getPopup().getContent(), visible: window.testMap.getBounds().contains(layer.getLatLng()) });
+    });
+    return { markers, center: window.testMap.getCenter(), zoom: window.testMap.getZoom() };
+  });
+}
+
+for (const used of [false, true]) {
+  test(`map follows nearby then region and default reload with ${used ? 'used' : 'unused'} session`, async ({ page }) => {
+    await captureMap(page);
+    const rows = Array.from({ length: 7 }, (_, i) => ({
+      ...mapObserver((i + 1).toString(16).padStart(64, '0'), `Transition ${i}`, i < 5 ? 42 + i / 100 : 48 + i / 100, i < 5 ? -71 : 2, i < 5 ? 'BOS' : 'CDG'),
+      lastPacketAt: Date.now(),
+    }));
+    await openNearbyFixture(page, { rows });
+    await page.getByRole('button', { name: 'Use my location' }).click();
+    await expect(page.locator('#nearby-results li')).toHaveCount(5);
+    await page.waitForTimeout(500);
+    expect((await mappedState(page)).markers).toHaveLength(5);
+    if (used) {
+      const historical = { ...mapSession(rows.slice(0, 5)), status: 'active', useCount: 1 };
+      await page.route('**/api/sessions/map-session', (route) => route.fulfill({ json: historical }));
+      await page.reload();
+      await expect(page.locator('#observed-count')).toHaveText('0 / 5');
+      await expect.poll(async () => (await mappedState(page)).markers.length).toBe(7);
+    }
+    await page.getByRole('button', { name: /^CDG/ }).click();
+    await expect.poll(async () => (await mappedState(page)).markers.length).toBe(2);
+    const region = await mappedState(page);
+    expect(region.markers.every((m) => /Transition [56]/.test(m.popup) && m.visible)).toBe(true);
+    expect(region.center.lng).toBeGreaterThan(0);
+    await page.reload();
+    await expect.poll(async () => (await mappedState(page)).markers.length).toBe(7);
+    const defaults = await mappedState(page);
+    expect(defaults.markers.every((m) => m.visible)).toBe(true);
+    expect(defaults.zoom).toBeLessThan(region.zoom);
+    expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+  });
+}
+
+test('reload resets nearby and stale storage to website defaults', async ({ page }) => {
+  const rows = await openNearbyFixture(page);
+  await page.getByRole('button', { name: 'Use my location' }).click();
+  await expect(page.locator('#nearby-results li')).toHaveCount(10);
+  await page.waitForTimeout(400);
+  await page.evaluate((key) => {
+    localStorage.setItem('mesh-health-check-observer-allowlist', JSON.stringify([key]));
+    sessionStorage.setItem('mesh-health-check-observer-allowlist', JSON.stringify([key]));
+  }, rows[0].key);
+  await page.reload();
+  await expect(page.locator('#observer-allowlist-note')).toContainText('Default:');
+  await expect(page.locator('#observer-allowlist input:checked')).toHaveCount(rows.length);
+  await expect(page.locator('#nearby-results li')).toHaveCount(0);
+  expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+  await expect(page.locator('#observed-count')).toContainText(String(rows.length));
+});
+
+test('reload preserves a used session without restoring its custom selection', async ({ page }) => {
+  const rows = await openNearbyFixture(page);
+  const used = { ...mapSession([rows[0]]), useCount: 1, status: 'active' };
+  await page.route('**/api/sessions/map-session', (route) => route.fulfill({ json: used }));
+  let posts = 0;
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/sessions') && request.method() === 'POST') posts++;
+  });
+  await page.reload();
+  await expect(page.locator('#observer-allowlist-note')).toContainText('Default:');
+  await expect(page.locator('#observer-allowlist input:checked')).toHaveCount(rows.length);
+  await expect(page.locator('#session-code')).toHaveText(used.code);
+  await expect(page.locator('#observed-count')).toHaveText('0 / 1');
+  expect(posts).toBe(0);
+  expect(await page.evaluate(() => JSON.parse(sessionStorage.getItem('mesh-health-check-session-history')))).toContain(used.id);
+});
+
+for (const unit of ['mi', 'km']) {
+  test(`nearby uses configured ${unit} for radius and distances`, async ({ page }) => {
+    await openNearbyFixture(page);
+    await page.route('**/api/bootstrap', (route) => {
+      const data = mapBootstrap([{ ...mapObserver(MAP_TEST_KEYS.target, 'Offset', 42.5, -71, null), lastPacketAt: Date.now() }], '');
+      data.observerStats.distanceUnit = unit;
+      return route.fulfill({ json: data });
+    });
+    await page.reload();
+    await expect(page.locator('#nearby-radius option:checked')).toHaveText(`100 ${unit}`);
+    await page.locator('#nearby-radius').selectOption('50');
+    await page.getByRole('button', { name: 'Use my location' }).click();
+    if (unit === 'mi') {
+      await expect(page.locator('#nearby-results li')).toContainText('34.5 mi');
+    } else {
+      await expect(page.locator('#nearby-status')).toContainText('No active observers');
+    }
+  });
+}
+
+test('nearby copy is sentence case and mobile controls fit', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 812 });
+  await openNearbyFixture(page);
+  expect(await page.locator('#nearby-status').evaluate((el) => getComputedStyle(el).textTransform)).toBe('none');
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(375);
+});
+
+test('nearby opt-in selects deterministic top ten, distances and keys-only session payload', async ({ page }) => {
+  const rows = await openNearbyFixture(page);
+  expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+  const posted = page.waitForRequest((r) => r.url().endsWith('/api/sessions') && r.method() === 'POST');
+  await page.getByRole('button', { name: 'Use my location' }).click();
+  await expect(page.locator('#nearby-status')).toContainText('10 selected');
+  await expect(page.locator('#nearby-results li')).toHaveCount(10);
+  await expect(page.locator('#nearby-results li').first()).toContainText('Nearby 1');
+  await expect(page.locator('#nearby-results li').first()).toContainText('0.0 mi');
+  const payload = (await posted).postDataJSON();
+  expect(Object.keys(payload)).toEqual(['expectedObserverKeys']);
+  expect(payload.expectedObserverKeys).toEqual(rows.map((o) => o.key).sort().slice(0, 10));
+  expect(await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }))).not.toContain('latitude');
+  const selectedKey = await page.locator('#observer-allowlist input:checked').first().getAttribute('value');
+  await page.locator(`#observer-allowlist input[value="${selectedKey}"]`).uncheck();
+  await expect(page.locator('#nearby-results li')).toHaveCount(0);
+  await page.getByRole('button', { name: 'Default Set', exact: true }).click();
+  await expect(page.locator('#observer-allowlist-note')).toContainText('Default:');
+});
+
+for (const mode of ['denied', 'unavailable', 'insecure', 'timeout']) {
+  test(`nearby ${mode} location falls back explicitly to map center`, async ({ page }) => {
+    await openNearbyFixture(page, { mode });
+    await page.getByRole('button', { name: 'Use my location' }).click();
+    await expect(page.locator('#nearby-status')).toContainText('Location');
+    await expect(page.locator('#nearby-status')).toContainText('map center');
+    await expect(page.locator('#nearby-status')).toContainText('10 selected');
+    if (mode === 'insecure' || mode === 'unavailable') expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+  });
+}
+
+test('nearby empty and stale activity preserve the previous observer selection', async ({ page }) => {
+  const rows = [
+    { ...mapObserver(MAP_TEST_KEYS.target, 'Stale', 42, -71, null), lastPacketAt: Date.now() - 1000000 },
+    { ...mapObserver(MAP_TEST_KEYS.outside, 'Unknown', 42, -71, null) },
+    { ...mapObserver(MAP_TEST_KEYS.zero, 'Bad coordinates', null, -71, null), lastPacketAt: Date.now() },
+  ];
+  await openNearbyFixture(page, { rows });
+  const before = await page.locator('#observer-allowlist input:checked').evaluateAll((els) => els.map((el) => el.value));
+  await page.getByRole('button', { name: 'Use my location' }).click();
+  await expect(page.locator('#nearby-status')).toContainText('No active observers');
+  await expect(page.locator('#nearby-status')).toContainText('unchanged');
+  expect(await page.locator('#observer-allowlist input:checked').evaluateAll((els) => els.map((el) => el.value))).toEqual(before);
+});
+
+test('nearby radius is explicit and map-center selection needs no location permission', async ({ page }) => {
+  await openNearbyFixture(page);
+  await expect(page.locator('#nearby-radius')).toHaveValue('100');
+  await page.locator('#nearby-radius').selectOption('25');
+  await page.getByRole('button', { name: 'Use map center', exact: true }).click();
+  await expect(page.locator('#nearby-status')).toContainText('25 mi');
+  await expect(page.locator('#nearby-status')).toContainText('10 selected');
+  expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+});
+
+test('late geolocation cannot overwrite a newer manual choice', async ({ page }) => {
+  await openNearbyFixture(page, { mode: 'delayed' });
+  await page.getByRole('button', { name: 'Use my location' }).click();
+  const selectedKey = await page.locator('#observer-allowlist input:checked').first().getAttribute('value');
+  await page.locator(`#observer-allowlist input[value="${selectedKey}"]`).uncheck();
+  const before = await page.locator('#observer-allowlist input:checked').count();
+  await page.evaluate(() => window.completeGeo());
+  expect(await page.locator('#observer-allowlist input:checked').count()).toBe(before);
+  await expect(page.locator('#nearby-results li')).toHaveCount(0);
+});
+
+
 const MAP_TEST_KEYS = {
   target: '1111111111111111111111111111111111111111111111111111111111111111',
   outside: '2222222222222222222222222222222222222222222222222222222222222222',
@@ -31,7 +275,7 @@ function mapBootstrap(observerDirectory, cartoBasemapKey = 'test-carto-key') {
       eyebrow: 'MeshCore Observer Coverage',
       headline: 'Check your mesh reach.',
       description: 'Generate a test code, send it to the configured channel, and watch observer coverage build in real time.',
-      version: '1.3.9',
+      version: '1.4.0',
       repoUrl: 'https://github.com/yellowcooln/meshcore-health-check',
       changesUrl: 'https://github.com/yellowcooln/meshcore-health-check/blob/main/CHANGES.md',
     },

@@ -20,7 +20,7 @@ in source files.
 | `EXTERNAL_LINK_LABEL` | blank | Label for the optional external link. |
 | `LOG_LEVEL` | `info` | Use `debug` only while troubleshooting ingest or decode behavior. |
 | `TRUST_PROXY` | `1` | Express proxy trust setting. Use `1` behind one trusted reverse proxy or `false` for direct access so client IP rate limits cannot be spoofed with forwarded headers. |
-| `DISTANCE_UNIT` | `mi` | Distance labels for packet-path estimates. Use `mi` or `km`. |
+| `DISTANCE_UNIT` | `mi` | Distance labels for packet-path estimates and nearby observer distances/search radii. Use `mi` or `km`; the nearby radius defaults to 100 in that unit. |
 
 As of August 2026, CARTO requires an API key for Dark Matter raster tiles. Keep
 the project key in `.env`, not Git. CARTO's browser integration exposes the key
@@ -131,3 +131,50 @@ Leave `REGIONS_FILE` blank to disable region detection.
 
 Turnstile is recommended for public deployments. Private/internal deployments
 can disable it.
+
+## Geographic website scope
+
+`ALLOWED_REGION_GROUPS` and `ALLOWED_REGIONS` are comma-separated, exact,
+case-sensitive labels from `REGIONS_FILE` (using `REGION_GROUP_PROPERTY` and
+`REGION_NAME_PROPERTY`). Both blank means unrestricted. When both are set,
+matching either list is sufficient (union, not intersection).
+
+For a New England-only website, excluding New Jersey:
+
+```env
+REGIONS_FILE=regions/us-states.geojson
+ALLOWED_REGION_GROUPS=New England
+ALLOWED_REGIONS=
+```
+
+Scope filters the observer directory, region options, configured/dynamic defaults,
+map and nearby candidates, and new custom session targets. Unknown or unlocated
+observers are excluded while scope is enabled. Unknown configured labels or
+missing/unreadable boundaries fail startup clearly. Out-of-scope custom targets
+return HTTP 400 (`observer_outside_geographic_scope`); no default candidates
+returns HTTP 400 (`no_observers_in_geographic_scope`), never an unrestricted
+session. Existing retained results, target sets and scoring are not rewritten.
+MQTT ingestion/subscriptions are unchanged: this is not an IATA whitelist, and
+stored observer metadata is not deleted. Restart the container after editing.
+
+### Initial region and Default Set
+
+Set `INITIAL_REGION=Massachusetts` with `ALLOWED_REGION_GROUPS=New England`
+and blank `ALLOWED_REGIONS` to start/reload in Massachusetts while keeping all
+New England regions available, including nearby selection. `INITIAL_REGION`
+is one exact GeoJSON region label (blank preserves the
+existing default). Unknown labels, missing boundaries, or defaults outside the
+allowed scope fail startup. No matching defaults never falls back outside that area.
+
+With `INITIAL_REGION` set, initial defaults rank recent activity inside the
+configured region before applying `OBSERVER_TOP_COUNT` (10); if there is no ranked
+history, active observers in that area are used. This takes precedence over fixed
+`KNOWN_OBSERVERS`; fixed keys remain the legacy default only with no initial region.
+The dashboard's **Default Set** uses recent top observers within the currently
+selected region (active-window fallback when no history), not a fixed pubkey list;
+it preserves that region. Reload restores the configured initial region. Region
+buttons may select all observers there; Default Set narrows them to the top set.
+No precise device coordinates are stored or sent to the server.
+Location requests a fresh high-accuracy estimate and displays browser-reported
+accuracy in meters; GPS accuracy is not guaranteed. The public `/privacy` page
+explains local storage, retained results, verification cookies and map providers.

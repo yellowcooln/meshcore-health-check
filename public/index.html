@@ -247,6 +247,26 @@
             <div class="empty-state compact hidden" id="map-empty">
               No saved observer coordinates yet. The app will learn them from MQTT metadata and store them in <code>data/observer.json</code>.
             </div>
+            <section class="nearby-controls" aria-labelledby="nearby-heading">
+              <h3 id="nearby-heading">Nearby observers (optional)</h3>
+              <p class="nearby-note">Use the website default set, or choose up to 10 nearby observers for this visit.</p>
+              <div class="nearby-actions">
+                <label for="nearby-radius">Search radius
+                  <select id="nearby-radius">
+                    <option value="25">25 km</option>
+                    <option value="50">50 km</option>
+                    <option value="100" selected>100 km</option>
+                    <option value="250">250 km</option>
+                    <option value="500">500 km</option>
+                  </select>
+                </label>
+                <button class="control-button ghost-button" id="nearby-location" type="button">Use my location</button>
+                <button class="control-button ghost-button" id="nearby-center" type="button">Use map center</button>
+              </div>
+              <p class="nearby-note">Location stays in your browser. If unavailable, we use the map center. Reload restores defaults.</p>
+              <p class="nearby-note" id="nearby-status" role="status" aria-live="polite">Website default set selected.</p>
+              <ol class="nearby-results" id="nearby-results" aria-label="Nearby observer distances"></ol>
+            </section>
             <div class="observer-map" id="observer-map"></div>
           </article>
 
@@ -323,6 +343,8 @@
 
         <footer class="site-footer">
           <p class="small-note">
+            <a href="/privacy">Privacy</a>
+            <span aria-hidden="true"> · </span>
             <a href="https://github.com/yellowcooln/meshcore-health-check/blob/main/CHANGES.md" id="site-version-note" rel="noopener noreferrer" target="_blank">Version: v0.0.0</a>
             <span aria-hidden="true"> · </span>
             Source:

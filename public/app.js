@@ -1,3 +1,5 @@
+import { nearestObservers } from './nearest-observers.js';
+
 const SESSION_STORAGE_KEY = 'mesh-health-check-session-id';
 const SESSION_HISTORY_STORAGE_KEY = 'mesh-health-check-session-history';
 const OBSERVER_ALLOWLIST_STORAGE_KEY = 'mesh-health-check-observer-allowlist';
@@ -41,6 +43,11 @@ const ui = {
   observerAllowlist: document.querySelector('#observer-allowlist'),
   observerAllowlistClear: document.querySelector('#observer-allowlist-clear'),
   uiThemeToggle: document.querySelector('#ui-theme-toggle'),
+  nearbyLocation: document.querySelector('#nearby-location'),
+  nearbyCenter: document.querySelector('#nearby-center'),
+  nearbyRadius: document.querySelector('#nearby-radius'),
+  nearbyStatus: document.querySelector('#nearby-status'),
+  nearbyResults: document.querySelector('#nearby-results'),
   mapObserverNote: document.querySelector('#map-observer-note'),
   mapEmpty: document.querySelector('#map-empty'),
   observerMap: document.querySelector('#observer-map'),
@@ -82,6 +89,9 @@ const mapObserverScope = document.body?.dataset?.mapObserverScope === 'directory
 
 localStorage.removeItem(SESSION_STORAGE_KEY);
 localStorage.removeItem(SESSION_HISTORY_STORAGE_KEY);
+// Observer choices are page-local; old releases persisted them in either store.
+localStorage.removeItem(OBSERVER_ALLOWLIST_STORAGE_KEY);
+sessionStorage.removeItem(OBSERVER_ALLOWLIST_STORAGE_KEY);
 
 const state = {
   snapshot: null,
@@ -89,7 +99,7 @@ const state = {
   sharedSessionId: sharedSessionIdFromLocation(),
   sharedSessionMissing: false,
   trackedSessionIds: loadTrackedSessionIds(),
-  selectedObserverKeys: loadSelectedObserverKeys(),
+  selectedObserverKeys: [],
   selectedRegionGroup: null,
   selectedRegion: null,
   uiTheme: loadUiTheme(),
@@ -99,6 +109,9 @@ const state = {
   sessionRetargetTimer: 0,
   refreshInFlight: false,
   observerAllowlistSignature: '',
+  nearbyRequest: 0,
+  nearbyMessage: '',
+  nearbyMatches: [],
   map: {
     instance: null,
     layer: null,
@@ -129,26 +142,6 @@ function saveTrackedSessionIds() {
   sessionStorage.setItem(
     SESSION_HISTORY_STORAGE_KEY,
     JSON.stringify(state.trackedSessionIds),
-  );
-}
-
-function loadSelectedObserverKeys() {
-  try {
-    const raw = sessionStorage.getItem(OBSERVER_ALLOWLIST_STORAGE_KEY);
-    if (!raw) {
-      return [];
-    }
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed.filter(Boolean) : [];
-  } catch {
-    return [];
-  }
-}
-
-function saveSelectedObserverKeys() {
-  sessionStorage.setItem(
-    OBSERVER_ALLOWLIST_STORAGE_KEY,
-    JSON.stringify(state.selectedObserverKeys),
   );
 }
 
@@ -313,6 +306,9 @@ function customSelectedObserverKeys() {
 }
 
 function defaultObserverKeys() {
+  if (state.selectedRegion && state.snapshot?.topObserverKeysByRegion?.[state.selectedRegion]) {
+    return state.snapshot.topObserverKeysByRegion[state.selectedRegion];
+  }
   return configuredDefaultObserverKeys();
 }
 
@@ -795,7 +791,7 @@ function redirectToLanding() {
 async function registerPwa() {
   if ('serviceWorker' in navigator) {
     try {
-      await navigator.serviceWorker.register('/sw.js');
+      await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
     } catch {
       // ignore registration failures
     }
@@ -1098,14 +1094,12 @@ function reconcileRegionSelection(snapshot) {
       state.selectedRegionGroup = null;
       state.selectedRegion = null;
       state.selectedObserverKeys = [];
-      saveSelectedObserverKeys();
       return;
     }
     if (state.selectedRegion !== null && !group.regions.some((region) => region.name === state.selectedRegion)) {
       state.selectedRegion = null;
     }
-    state.selectedObserverKeys = observerKeysForRegionSelection(snapshot);
-    saveSelectedObserverKeys();
+    if (state.selectedObserverKeys.length > 0) state.selectedObserverKeys = observerKeysForRegionSelection(snapshot);
     return;
   }
 
@@ -1114,25 +1108,23 @@ function reconcileRegionSelection(snapshot) {
     if (!regionExists) {
       state.selectedRegion = null;
       state.selectedObserverKeys = [];
-      saveSelectedObserverKeys();
       return;
     }
     if (hasGroups) {
       const parent = regions.find((entry) => entry.regions.some((region) => region.name === state.selectedRegion));
       state.selectedRegionGroup = parent?.group || null;
     }
-    state.selectedObserverKeys = observerKeysForRegionSelection(snapshot);
-    saveSelectedObserverKeys();
+    if (state.selectedObserverKeys.length > 0) state.selectedObserverKeys = observerKeysForRegionSelection(snapshot);
   }
 }
 
 function applyRegionSelection() {
+  clearNearbySelection();
   if (state.selectedRegionGroup === null && state.selectedRegion === null) {
     state.selectedObserverKeys = [];
   } else {
     state.selectedObserverKeys = observerKeysForRegionSelection(state.snapshot);
   }
-  saveSelectedObserverKeys();
   render();
   scheduleSessionRetarget();
 }
@@ -1204,6 +1196,7 @@ function renderObserverAllowlist() {
     `;
     const checkbox = item.querySelector('input');
     checkbox.addEventListener('change', () => {
+      clearNearbySelection();
       const next = new Set(effectiveObserverKeysForCreate());
       if (checkbox.checked) {
         next.add(row.key);
@@ -1213,7 +1206,6 @@ function renderObserverAllowlist() {
       state.selectedRegionGroup = null;
       state.selectedRegion = null;
       state.selectedObserverKeys = [...next];
-      saveSelectedObserverKeys();
       render();
       scheduleSessionRetarget();
     });
@@ -1282,8 +1274,11 @@ function mapKnownObservers(session) {
   let source = [...mergedDirectory.values()];
   if (mapObserverScope === 'expected') {
     const directoryByKey = new Map(source.map((observer) => [observer.key, observer]));
-    const expected = Array.isArray(session?.expectedObservers)
-      ? session.expectedObservers.filter((observer) => observer?.key)
+    // The dashboard map previews the live selection, not a retained code's
+    // immutable targets. Shared results continue to map their original targets.
+    const mapSession = isSharePage() ? session : targetPreviewSession();
+    const expected = Array.isArray(mapSession?.expectedObservers)
+      ? mapSession.expectedObservers.filter((observer) => observer?.key)
       : [];
     if (expected.length > 0) {
       source = expected.map((observer) => {
@@ -1318,6 +1313,118 @@ function mapKnownObservers(session) {
       seen: Boolean(observer.seen) || seenKeys.has(observer.key),
     }));
 }
+
+function clearNearbySelection() {
+  state.nearbyRequest += 1;
+  state.nearbyMessage = '';
+  state.nearbyMatches = [];
+  if (ui.nearbyLocation) ui.nearbyLocation.disabled = false;
+}
+
+function nearbyDistanceUnit() {
+  return state.snapshot?.observerStats?.distanceUnit === 'km' ? 'km' : 'mi';
+}
+
+function renderNearbySelection() {
+  if (!ui.nearbyStatus || !ui.nearbyResults) return;
+  const unit = nearbyDistanceUnit();
+  for (const option of ui.nearbyRadius.options) option.textContent = `${option.value} ${unit}`;
+  ui.nearbyStatus.textContent = state.nearbyMessage
+    || `Optional: find nearby observers for this visit. Current target: ${effectiveObserverKeysForCreate().length} observers.`;
+  ui.nearbyResults.replaceChildren();
+  for (const observer of state.nearbyMatches) {
+    const item = document.createElement('li');
+    item.textContent = `${observer.label} - ${(observer.distanceKm * (unit === 'mi' ? 0.621371 : 1)).toFixed(1)} ${unit}`;
+    ui.nearbyResults.appendChild(item);
+  }
+}
+
+function selectNearbyObservers(origin, source, prefix = '') {
+  const unit = nearbyDistanceUnit();
+  const radius = Number(ui.nearbyRadius.value);
+  const radiusKm = unit === 'mi' ? radius / 0.621371 : radius;
+  const matches = nearestObservers({
+    observers: selectableObservers(), origin, radiusKm,
+    windowSeconds: state.snapshot?.observerStats?.windowSeconds,
+  });
+  // Retain labels/distances only, not the device coordinates. Do not pan to the
+  // device: that would disclose its area through third-party map tile requests.
+  state.nearbyMatches = matches.map((observer) => ({
+    label: observerDisplayLabel(observer), distanceKm: observer.distanceKm,
+  }));
+  ui.nearbyLocation.disabled = false;
+  if (matches.length === 0) {
+    state.nearbyMessage = `${prefix}No active observers with valid coordinates within ${radius} ${unit} of ${source}. Selection unchanged (${effectiveObserverKeysForCreate().length} current targets). Try a wider radius or pan the map.`;
+    renderNearbySelection();
+    return;
+  }
+  state.selectedRegionGroup = null;
+  state.selectedRegion = null;
+  state.selectedObserverKeys = matches.map((observer) => observer.key);
+  state.nearbyMessage = `${prefix}${matches.length} selected within ${radius} ${unit} of ${source}. Reload restores the website default set.`;
+  render();
+  scheduleSessionRetarget();
+}
+
+function selectNearbyMapCenter(prefix = '') {
+  const map = ensureObserverMap();
+  if (!map) {
+    ui.nearbyLocation.disabled = false;
+    state.nearbyMessage = `${prefix}Map unavailable. Selection unchanged; use the manual observer controls.`;
+    renderNearbySelection();
+    return;
+  }
+  const center = map.getCenter().wrap();
+  selectNearbyObservers({ lat: center.lat, lon: center.lng }, 'map center', prefix);
+}
+
+function requestNearbyLocation() {
+  if (!state.snapshot || isSharePage()) return;
+  clearNearbySelection();
+  const request = state.nearbyRequest;
+  if (!window.isSecureContext || !navigator.geolocation) {
+    selectNearbyMapCenter('Location unavailable (HTTPS or browser support required). Using map center. ');
+    return;
+  }
+  ui.nearbyLocation.disabled = true;
+  state.nearbyMessage = 'Requesting location permission... You can use map center instead.';
+  renderNearbySelection();
+  const fallback = (error) => {
+    if (request !== state.nearbyRequest) return;
+    const reason = error?.code === 1 ? 'denied' : error?.code === 3 ? 'timed out' : 'unavailable';
+    selectNearbyMapCenter(`Location ${reason}. Using map center. `);
+  };
+  try {
+    navigator.geolocation.getCurrentPosition((position) => {
+      if (request !== state.nearbyRequest) return;
+      const lat = position?.coords?.latitude;
+      const lon = position?.coords?.longitude;
+      if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        fallback();
+        return;
+      }
+      const accuracy = position?.coords?.accuracy;
+      const accuracyNote = Number.isFinite(accuracy) && accuracy >= 0
+        ? `Browser-reported accuracy: about ${Math.round(accuracy)} m. `
+        : 'Browser accuracy unavailable. ';
+      selectNearbyObservers({ lat, lon }, 'your location', `${accuracyNote}Location is an estimate, not guaranteed GPS. `);
+    }, fallback, { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 });
+  } catch {
+    fallback();
+  }
+}
+
+ui.nearbyLocation?.addEventListener('click', requestNearbyLocation);
+ui.nearbyCenter?.addEventListener('click', () => {
+  if (!state.snapshot || isSharePage()) return;
+  clearNearbySelection();
+  selectNearbyMapCenter();
+});
+ui.nearbyRadius?.addEventListener('change', () => {
+  clearNearbySelection();
+  state.nearbyMessage = 'Radius changed. Click a location source to search again; selection unchanged.';
+  renderNearbySelection();
+});
 
 function ensureObserverMap() {
   if (state.map.instance || !ui.observerMap || !window.L) {
@@ -1864,6 +1971,7 @@ function render() {
     return;
   }
   applyUiTheme();
+  renderNearbySelection();
 
   const channelLabel = `#${snapshot.testChannel.name}`;
   const historySessions = state.trackedSessionIds
@@ -1969,6 +2077,9 @@ function render() {
 }
 
 function applySnapshot(snapshot) {
+  if (!state.snapshot && snapshot.defaultRegions?.length === 1) {
+    state.selectedRegion = snapshot.defaultRegions[0];
+  }
   const previousRegionGroup = state.selectedRegionGroup;
   const previousRegion = state.selectedRegion;
   const previousObserverKeys = state.selectedObserverKeys;
@@ -2078,7 +2189,7 @@ function connectSocket() {
       if (message.type === 'snapshot') {
         applySnapshot(message.data);
         refreshTrackedSessions().then(() => {
-          render();
+      render();
         });
       }
     } catch {
@@ -2100,7 +2211,7 @@ async function bootstrap() {
   }
   if (isSharedRoute()) {
     render();
-  } else if (!currentSession()) {
+  } else if (!currentSession() || (sessionCanRetarget(currentSession()) && selectionDiffersFromSession(currentSession()))) {
     await createSession();
   } else {
     render();
@@ -2125,13 +2236,11 @@ ui.shareSessionButton.addEventListener('click', () => {
 });
 
 ui.observerAllowlistClear.addEventListener('click', () => {
+  clearNearbySelection();
   if (usingDefaultObserverSet()) {
     return;
   }
-  state.selectedRegionGroup = null;
-  state.selectedRegion = null;
   state.selectedObserverKeys = [];
-  saveSelectedObserverKeys();
   render();
   scheduleSessionRetarget();
 });

@@ -29,6 +29,31 @@ Other community Health Checks:
 - keeps retained `/share/:sessionId` result links
 - supports Cloudflare Turnstile and installable PWA behavior
 
+## Nearby Observer Selection
+
+Every reload starts with the website-configured default observer set. Nearby,
+manual and region choices are temporary; location is optional and only requested
+on click. Used session history remains available without changing the next-code defaults.
+
+On the coverage map, click **Use my location** to select up to 10 nearest active
+observers within the displayed radius (100 by default; adjustable from 25 to
+500 in the configured `DISTANCE_UNIT=mi` or `km`). No permission is requested on page load. **Use map center** lets you pan
+to an area without sharing device location; it is also the labeled fallback if
+geolocation fails or requires HTTPS. Distances use the same environment-configured unit as packet estimates, but are straight-line distances, not
+radio-path estimates: **proximity does not guarantee RF coverage**.
+
+Selection uses recent packet activity, not merely saved observer metadata.
+Missing/stale activity and invalid coordinates are excluded. If nothing qualifies,
+your previous selection stays unchanged. Manual, region and Default Set controls
+remain available. An unused code may be regenerated as in the existing selection
+workflow; a used code keeps its target and the selection applies to the next code.
+The app never transmits for you.
+
+Precise device coordinates are only used for browser-side distance calculations;
+they are not stored or sent to the backend. Only selected observer keys follow
+the normal session workflow. See [HOWTO.md](HOWTO.md#select-nearby-observers) for
+activity rules, privacy boundaries and troubleshooting.
+
 ## Quick Start
 
 Clone the repo and run the local Compose build:
@@ -132,3 +157,50 @@ build loading cleanly across module formats.
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=yellowcooln/meshcore-health-check&type=date&legend=top-left" />
  </picture>
 </a>
+
+## Geographic website scope
+
+`ALLOWED_REGION_GROUPS` and `ALLOWED_REGIONS` are comma-separated, exact,
+case-sensitive labels from `REGIONS_FILE` (using `REGION_GROUP_PROPERTY` and
+`REGION_NAME_PROPERTY`). Both blank means unrestricted. When both are set,
+matching either list is sufficient (union, not intersection).
+
+For a New England-only website, excluding New Jersey:
+
+```env
+REGIONS_FILE=regions/us-states.geojson
+ALLOWED_REGION_GROUPS=New England
+ALLOWED_REGIONS=
+```
+
+Scope filters the observer directory, region options, configured/dynamic defaults,
+map and nearby candidates, and new custom session targets. Unknown or unlocated
+observers are excluded while scope is enabled. Unknown configured labels or
+missing/unreadable boundaries fail startup clearly. Out-of-scope custom targets
+return HTTP 400 (`observer_outside_geographic_scope`); no default candidates
+returns HTTP 400 (`no_observers_in_geographic_scope`), never an unrestricted
+session. Existing retained results, target sets and scoring are not rewritten.
+MQTT ingestion/subscriptions are unchanged: this is not an IATA whitelist, and
+stored observer metadata is not deleted. Restart the container after editing.
+
+### Initial region and Default Set
+
+Set `INITIAL_REGION=Massachusetts` with `ALLOWED_REGION_GROUPS=New England`
+and blank `ALLOWED_REGIONS` to start/reload in Massachusetts while keeping all
+New England regions available, including nearby selection. `INITIAL_REGION`
+is one exact GeoJSON region label (blank preserves the
+existing default). Unknown labels, missing boundaries, or defaults outside the
+allowed scope fail startup. No matching defaults never falls back outside that area.
+
+With `INITIAL_REGION` set, initial defaults rank recent activity inside the
+configured region before applying `OBSERVER_TOP_COUNT` (10); if there is no ranked
+history, active observers in that area are used. This takes precedence over fixed
+`KNOWN_OBSERVERS`; fixed keys remain the legacy default only with no initial region.
+The dashboard's **Default Set** uses recent top observers within the currently
+selected region (active-window fallback when no history), not a fixed pubkey list;
+it preserves that region. Reload restores the configured initial region. Region
+buttons may select all observers there; Default Set narrows them to the top set.
+No precise device coordinates are stored or sent to the server.
+Location requests a fresh high-accuracy estimate and displays browser-reported
+accuracy in meters; GPS accuracy is not guaranteed. The public `/privacy` page
+explains local storage, retained results, verification cookies and map providers.

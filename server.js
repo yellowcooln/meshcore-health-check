@@ -671,6 +671,48 @@ function loadRegionBoundaries() {
 }
 
 const regionBoundaries = loadRegionBoundaries();
+const allowedRegionGroups = envList('ALLOWED_REGION_GROUPS');
+const allowedRegions = envList('ALLOWED_REGIONS');
+const geographicScopeEnabled = allowedRegionGroups.length > 0 || allowedRegions.length > 0;
+const initialRegion = String(process.env.INITIAL_REGION || '').trim();
+const defaultRegions = initialRegion ? [initialRegion] : [];
+const geographicDefaultsEnabled = defaultRegions.length > 0;
+if (geographicScopeEnabled || geographicDefaultsEnabled) {
+  if (regionBoundaries.length === 0) {
+    throw new Error('Geographic scope requires a readable REGIONS_FILE with region boundaries');
+  }
+  for (const [setting, labels, property] of [
+    ['ALLOWED_REGION_GROUPS', allowedRegionGroups, 'group'],
+    ['ALLOWED_REGIONS', allowedRegions, 'name'],
+    ['INITIAL_REGION', defaultRegions, 'name'],
+  ]) {
+    const known = new Set(regionBoundaries.map((boundary) => boundary[property]));
+    const unknown = labels.filter((label) => !known.has(label));
+    if (unknown.length) throw new Error(`Geographic scope: unknown ${setting} labels: ${unknown.join(', ')}`);
+  }
+}
+
+if (geographicScopeEnabled) {
+  const outside = defaultRegions.filter((region) => regionBoundaries
+    .filter((boundary) => boundary.name === region)
+    .some((boundary) => !allowedRegions.includes(region) && !allowedRegionGroups.includes(boundary.group)));
+  if (outside.length) throw new Error(`Geographic scope: INITIAL_REGION outside allowed scope: ${outside.join(', ')}`);
+}
+
+function observerKeyInDefaultScope(key) {
+  if (!observerKeyInGeographicScope(key)) return false;
+  if (!geographicDefaultsEnabled) return true;
+  const observer = observerState.get(key) || observerProfiles.get(key);
+  return defaultRegions.includes(deriveRegionInfo(observer?.lat, observer?.lon).region);
+}
+
+// Scope is a website selection boundary, never an MQTT ingestion filter.
+function observerKeyInGeographicScope(key) {
+  if (!geographicScopeEnabled) return true;
+  const observer = observerState.get(key) || observerProfiles.get(key);
+  const info = deriveRegionInfo(observer?.lat, observer?.lon);
+  return Boolean(info.region && (allowedRegions.includes(info.region) || allowedRegionGroups.includes(info.regionGroup)));
+}
 
 function deriveRegionInfo(lat, lon) {
   if (lat == null || lon == null || regionBoundaries.length === 0) {
@@ -1815,7 +1857,7 @@ function createCode() {
 function activeObserverKeys(now = Date.now()) {
   const keys = [];
   for (const observer of observerState.values()) {
-    if (now - observer.lastPacketAt <= OBSERVER_ACTIVE_WINDOW_MS) {
+    if (now - observer.lastPacketAt <= OBSERVER_ACTIVE_WINDOW_MS && observerKeyInGeographicScope(observer.key)) {
       keys.push(observer.key);
     }
   }
@@ -1828,11 +1870,12 @@ function observerDisplayLabelForKey(observerKey) {
   return String(observer?.name || profile?.name || shortKey(observerKey));
 }
 
-function topObserverKeys(now = Date.now()) {
+function topObserverKeys(now = Date.now(), matches = observerKeyInDefaultScope) {
   const dayKeys = new Set(recentUtcDayKeys(OBSERVER_TOP_WINDOW_DAYS, now));
   const ranked = [];
 
   for (const [key, entry] of observerActivityHistory.entries()) {
+    if (!matches(key)) continue;
     const lastPacketAt = Math.max(0, Number(entry?.lastPacketAt || 0));
     if (OBSERVER_RETENTION_MS > 0 && (!lastPacketAt || now - lastPacketAt > OBSERVER_RETENTION_MS)) {
       continue;
@@ -1870,9 +1913,9 @@ function topObserverKeys(now = Date.now()) {
 }
 
 function defaultObserverTarget(now = Date.now()) {
-  if (KNOWN_OBSERVERS.length > 0) {
+  if (!geographicDefaultsEnabled && KNOWN_OBSERVERS.length > 0) {
     return {
-      keys: [...KNOWN_OBSERVERS],
+      keys: KNOWN_OBSERVERS.filter(observerKeyInDefaultScope),
       source: 'configured',
     };
   }
@@ -1884,7 +1927,7 @@ function defaultObserverTarget(now = Date.now()) {
     };
   }
   return {
-    keys: activeObserverKeys(now),
+    keys: activeObserverKeys(now).filter(observerKeyInDefaultScope),
     source: 'active-window',
   };
 }
@@ -1960,7 +2003,7 @@ function observerDirectory() {
   const now = Date.now();
   const defaultKeys = new Set(defaultObserverTarget().keys);
   return [...observerState.values()]
-    .filter((observer) => observerIsRetained(observer, now))
+    .filter((observer) => observerIsRetained(observer, now) && observerKeyInGeographicScope(observer.key))
     .sort((left, right) => {
       const leftDefault = defaultKeys.has(left.key) ? 1 : 0;
       const rightDefault = defaultKeys.has(right.key) ? 1 : 0;
@@ -2386,6 +2429,12 @@ function snapshotPayload() {
     results: {
       retentionSeconds: Math.round(RESULT_RETENTION_MS / 1000),
     },
+    defaultRegions,
+    topObserverKeysByRegion: Object.fromEntries([...new Set(directory.map((o) => o.region).filter(Boolean))].map((region) => {
+      const keys = new Set(directory.filter((o) => o.region === region).map((o) => o.key));
+      const ranked = topObserverKeys(Date.now(), (key) => keys.has(key));
+      return [region, ranked.length ? ranked : activeObserverKeys().filter((key) => keys.has(key)).slice(0, OBSERVER_TOP_COUNT)];
+    })),
     defaultObserverKeys: defaultTarget.keys,
     defaultObservers,
     defaultObserverSource: defaultTarget.source,
@@ -2872,7 +2921,7 @@ app.use((request, response, next) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('X-Frame-Options', 'DENY');
   response.setHeader('Referrer-Policy', 'no-referrer');
-  response.setHeader('Permissions-Policy', 'camera=(), geolocation=(), microphone=()');
+  response.setHeader('Permissions-Policy', 'camera=(), geolocation=(self), microphone=()');
   if (request.path.startsWith('/api/') || request.path.startsWith('/share/')) {
     response.setHeader('Cache-Control', 'no-store');
   }
@@ -2899,6 +2948,10 @@ app.use((request, response, next) => {
   }
   next();
 });
+app.get('/privacy', (request, response) => {
+  response.sendFile(path.join(APP_DIR, 'public/privacy.html'));
+});
+
 app.get('/manifest.webmanifest', (request, response) => {
   response.type('application/manifest+json').send(JSON.stringify({
     name: PWA_APP_NAME,
@@ -2973,9 +3026,19 @@ app.post(
       return;
     }
     const now = Date.now();
-    const requestedAllowlist = explicitObserverAllowlist(request.body?.expectedObserverKeys);
+    const requestedKeys = request.body?.expectedObserverKeys;
+    if (geographicScopeEnabled && Array.isArray(requestedKeys)
+      && requestedKeys.some((key) => !observerKeyInGeographicScope(normalizeKey(key)))) {
+      response.status(400).json({ error: 'observer_outside_geographic_scope' });
+      return;
+    }
+    const requestedAllowlist = explicitObserverAllowlist(requestedKeys);
     const defaultExpected = expectedObserversForSession();
     const expected = requestedAllowlist.enabled ? requestedAllowlist : defaultExpected;
+    if ((geographicScopeEnabled || geographicDefaultsEnabled) && expected.keys.length === 0) {
+      response.status(400).json({ error: 'no_observers_in_geographic_scope' });
+      return;
+    }
     const session = {
       id: randomUUID(),
       code: createCode(),
@@ -2991,7 +3054,7 @@ app.post(
       sender: '',
       channelHash: '',
       channelName: '',
-      allowlistEnabled: requestedAllowlist.enabled,
+      allowlistEnabled: requestedAllowlist.enabled || geographicScopeEnabled,
       expectedObserverKeys: expected.keys.length > 0 ? expected.keys : [],
       expectedObserverSource: expected.source || '',
       receipts: new Map(),

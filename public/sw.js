@@ -1,10 +1,13 @@
-const CACHE_NAME = 'mesh-health-check-pwa-v3';
+// Asset revision is independent of the release version; bump for shell changes.
+const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-privacy-location-4';
 const CORE_ASSETS = [
   '/',
   '/app',
+  '/privacy',
   '/manifest.webmanifest',
   '/styles.css',
   '/app.js',
+  '/nearest-observers.js',
   '/landing.css',
   '/turnstile-landing.js',
   '/logo.png',
@@ -14,7 +17,8 @@ const CORE_ASSETS = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(CORE_ASSETS)),
+    caches.open(CACHE_NAME).then((cache) =>
+      cache.addAll(CORE_ASSETS.map((url) => new Request(url, { cache: 'reload' })))),
   );
   self.skipWaiting();
 });

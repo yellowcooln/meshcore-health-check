@@ -1,5 +1,12 @@
 import { expect, test } from '@playwright/test';
 
+test('privacy stays public while Turnstile protects the dashboard', async ({ page, request }) => {
+  const response = await request.get('/app', { maxRedirects: 0 });
+  expect(response.status()).toBe(302);
+  await page.goto('/privacy');
+  await expect(page.getByRole('heading', { name: 'Privacy', exact: true })).toBeVisible();
+});
+
 test('turnstile landing page renders when verification is required', async ({ page }) => {
   await page.route('https://challenges.cloudflare.com/**', async (route) => {
     await route.fulfill({
