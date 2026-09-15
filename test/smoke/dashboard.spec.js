@@ -39,6 +39,36 @@ async function openNearbyFixture(page, { mode = 'success', rows, bootstrapOverri
   return observers;
 }
 
+test('nearby blue dot appears only on selection and marks the chosen point', async ({ page }) => {
+  await captureMap(page);
+  await openNearbyFixture(page);
+  const dot = page.locator('.nearby-origin-dot');
+  await expect(dot).toHaveCount(0);
+  await page.locator('#nearby-location').click();
+  await expect(dot).toHaveCount(1);
+  const origin = () => page.evaluate(() => {
+    const layers = [];
+    window.testMap.eachLayer((layer) => {
+      if (layer instanceof L.CircleMarker && layer.options.className === 'nearby-origin-dot') {
+        layers.push({ point: layer.getLatLng(), color: layer.options.fillColor });
+      }
+    });
+    return layers;
+  });
+  expect(await origin()).toEqual([{ point: { lat: 42, lng: -71 }, color: '#3b82f6' }]);
+  await page.evaluate(() => window.testMap.setView([42.1, -71.1], 9, { animate: false }));
+  expect((await origin())[0].point).toEqual({ lat: 42, lng: -71 });
+  await page.evaluate(() => document.querySelector('#nearby-center').addEventListener('click', () => {
+    window.clickedCenter = window.testMap.getCenter().wrap();
+  }, { capture: true, once: true }));
+  await page.locator('#nearby-center').click();
+  await expect(dot).toHaveCount(1);
+  expect((await origin())[0].point).toEqual(await page.evaluate(() => window.clickedCenter));
+  await page.reload();
+  await expect(page.locator('#session-code')).toContainText('MHC-');
+  await expect(dot).toHaveCount(0);
+});
+
 test('location requests high accuracy and displays browser accuracy', async ({ page }) => {
   await openNearbyFixture(page);
   await page.getByRole('button', { name: 'Use my location' }).click();

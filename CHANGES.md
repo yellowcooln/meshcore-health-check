@@ -6,6 +6,8 @@
   active observers, with distance labels and adjustable search radii using
   `DISTANCE_UNIT=mi|km` and `NEARBY_DEFAULT_RADIUS=100`; radii span 5 to 200
   with finer steps, and invalid positions and stale activity are excluded
+- added a small blue map dot for the chosen browser location or map center,
+  shown only after a nearby-location action and cleared with that selection
 - added bounded 12-second high-accuracy refinement retaining the best browser
   estimate, explicit acceptance for coarse fixes, browser-reported accuracy, and
   labeled map-center fallback when permission or positioning is unavailable;

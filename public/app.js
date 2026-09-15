@@ -122,6 +122,7 @@ const state = {
     layer: null,
     layerTheme: '',
     markers: new Map(),
+    nearbyMarker: null,
     boundsKey: '',
   },
   drawer: {
@@ -1323,6 +1324,8 @@ function mapKnownObservers(session) {
 }
 
 function clearNearbySelection() {
+  state.map.nearbyMarker?.remove();
+  state.map.nearbyMarker = null;
   state.nearbyRequest += 1;
   state.nearbyCancel?.();
   state.nearbyCancel = null;
@@ -1363,8 +1366,14 @@ function selectNearbyObservers(origin, source, prefix = '') {
     observers: selectableObservers(), origin, radiusKm,
     windowSeconds: state.snapshot?.observerStats?.windowSeconds,
   });
-  // Retain labels/distances only, not the device coordinates. Do not pan to the
-  // device: that would disclose its area through third-party map tile requests.
+  // Keep the chosen point only in this transient map layer, never storage or
+  // API payloads. Do not pan to it or include it in observer fit bounds.
+  const map = ensureObserverMap();
+  state.map.nearbyMarker?.remove();
+  state.map.nearbyMarker = map ? window.L.circleMarker([origin.lat, origin.lon], {
+    radius: 6, color: '#ffffff', weight: 2, fillColor: '#3b82f6',
+    fillOpacity: 1, className: 'nearby-origin-dot', pane: 'tooltipPane',
+  }).bindTooltip(`Nearby search: ${source}`).addTo(map) : null;
   state.nearbyMatches = matches.map((observer) => ({
     label: observerDisplayLabel(observer), distanceKm: observer.distanceKm,
   }));
