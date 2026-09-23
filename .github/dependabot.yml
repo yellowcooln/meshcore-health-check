@@ -1,5 +1,30 @@
 version: 2
 updates:
+  # Keep the 1.4.0 feature line current independently of dev.
+  - package-ecosystem: npm
+    directory: /
+    target-branch: feat/location-observers-1.4.0
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: github-actions
+    directory: /
+    target-branch: feat/location-observers-1.4.0
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
+  - package-ecosystem: docker
+    directory: /
+    target-branch: feat/location-observers-1.4.0
+    ignore:
+      - dependency-name: node
+        update-types: ["version-update:semver-major"]
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+
   - package-ecosystem: npm
     directory: /
     target-branch: dev
