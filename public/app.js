@@ -124,6 +124,7 @@ const state = {
     markers: new Map(),
     nearbyMarker: null,
     boundsKey: '',
+    preserveNearbyViewport: false,
   },
   drawer: {
     kind: '',
@@ -1324,6 +1325,7 @@ function mapKnownObservers(session) {
 }
 
 function clearNearbySelection() {
+  state.map.preserveNearbyViewport = false;
   state.map.nearbyMarker?.remove();
   state.map.nearbyMarker = null;
   state.nearbyRequest += 1;
@@ -1386,6 +1388,7 @@ function selectNearbyObservers(origin, source, prefix = '') {
   state.selectedRegionGroup = null;
   state.selectedRegion = null;
   state.selectedObserverKeys = matches.map((observer) => observer.key);
+  state.map.preserveNearbyViewport = source === 'map center';
   state.nearbyMessage = `${prefix}${matches.length} selected within ${radius} ${unit} of ${source}. Reload restores the website default set.`;
   render();
   scheduleSessionRetarget();
@@ -1552,10 +1555,12 @@ function renderObserverMap(session) {
 
   const boundsKey = locatedObservers.map((observer) => observer.key).join('|');
   if (bounds.length > 0 && boundsKey !== state.map.boundsKey) {
-    mapInstance.fitBounds(bounds, { padding: [26, 26], maxZoom: 10 });
+    if (!state.map.preserveNearbyViewport) {
+      mapInstance.fitBounds(bounds, { padding: [26, 26], maxZoom: 10 });
+    }
     state.map.boundsKey = boundsKey;
   } else if (bounds.length === 0 && state.map.boundsKey !== '__empty__') {
-    mapInstance.setView([20, 0], 2);
+    if (!state.map.preserveNearbyViewport) mapInstance.setView([20, 0], 2);
     state.map.boundsKey = '__empty__';
   }
   window.setTimeout(() => {

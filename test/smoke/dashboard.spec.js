@@ -69,6 +69,51 @@ test('nearby blue dot appears only on selection and marks the chosen point', asy
   await expect(dot).toHaveCount(0);
 });
 
+test('repeated map-center searches preserve the panned viewport after browser location', async ({ page }) => {
+  await captureMap(page);
+  const rows = [42, 42.2, 42.4].map((lat, i) => ({
+    ...mapObserver(String(i + 1).repeat(64), `Search area ${i}`, lat, -71, null),
+    lastPacketAt: Date.now(),
+  }));
+  await openNearbyFixture(page, { rows });
+  await page.locator('#nearby-radius').selectOption('5');
+  await page.locator('#nearby-location').click();
+  await expect(page.locator('#nearby-results li')).toHaveCount(1);
+  await page.evaluate(() => {
+    const map = window.testMap;
+    map.stop();
+    window.searchFits = [];
+    const fit = map.fitBounds.bind(map);
+    map.fitBounds = (...args) => { window.searchFits.push(args[0]); return fit(...args); };
+    document.querySelector('#nearby-center').addEventListener('click', () => {
+      window.searchView = { center: map.getCenter().wrap(), zoom: map.getZoom() };
+    }, { capture: true });
+  });
+  for (const [lat, label] of [[42.03, 'Search area 0'], [42.18, 'Search area 1'], [42.38, 'Search area 2']]) {
+    await page.evaluate((lat) => window.testMap.setView([lat, -71], 11, { animate: false }), lat);
+    await page.locator('#nearby-center').click();
+    await expect(page.locator('#nearby-results li')).toContainText([label]);
+    // Observe the viewport through the debounced session replacement too.
+    await page.waitForTimeout(700);
+    const result = await page.evaluate(() => {
+      const map = window.testMap;
+      const dots = [];
+      map.eachLayer((layer) => {
+        if (layer.options.className === 'nearby-origin-dot') dots.push(layer.getLatLng());
+      });
+      return { fits: window.searchFits, selected: window.searchView,
+        center: map.getCenter().wrap(), zoom: map.getZoom(), dots, geoCalls: window.geoCalls };
+    });
+    expect(result.fits).toEqual([]);
+    // Leaflet invalidateSize can nudge the center by a few screen pixels.
+    expect(result.center.lat).toBeCloseTo(result.selected.center.lat, 2);
+    expect(result.center.lng).toBeCloseTo(result.selected.center.lng, 2);
+    expect(result.zoom).toBe(result.selected.zoom);
+    expect(result.dots).toEqual([result.selected.center]);
+    expect(result.geoCalls).toBe(1);
+  }
+});
+
 test('location requests high accuracy and displays browser accuracy', async ({ page }) => {
   await openNearbyFixture(page);
   await page.getByRole('button', { name: 'Use my location' }).click();
@@ -162,8 +207,10 @@ test('All selects the allowed scope, Default Set ranks that scope, reload restor
   await page.getByRole('button', { name: /^All(?: regions)?\s/ }).click();
   await expect(page.locator('#observer-allowlist input:checked')).toHaveCount(4);
   await expect.poll(async () => (await mappedState(page)).markers.length).toBe(4);
-  const all = await mappedState(page);
-  for (const row of rows) expect(all.markers.some((m) => m.popup.includes(row.name) && m.visible)).toBe(true);
+  await expect.poll(async () => {
+    const all = await mappedState(page);
+    return rows.every((row) => all.markers.some((m) => m.popup.includes(row.name) && m.visible));
+  }).toBe(true);
   await page.getByRole('button', { name: 'Default Set', exact: true }).click();
   await expect.poll(async () => (await mappedState(page)).markers.map((m) => /CT top/.test(m.popup))).toEqual([true]);
   await expect.poll(() => targets.at(-1)).toEqual([rows[1].key]);
