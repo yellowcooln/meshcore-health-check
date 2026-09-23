@@ -24,8 +24,6 @@
 - added a public Privacy page linked from dashboard and verification footers,
   explaining browser-only device-coordinate processing, local storage, retained
   results, verification cookies and third-party map/location providers
-- updated MQTT.js to 5.16.0 for broker-packet handling security fixes and
-  dotenv to 18.0.1, retaining the existing environment-loading behavior
 - updated PWA asset refresh behavior, responsive map controls, operator guides
   and environment examples for the new selection workflow
 - expanded unit/API and browser coverage for geographic scope, ranked defaults,
