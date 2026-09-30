@@ -29,6 +29,17 @@ Other community Health Checks:
 - keeps retained `/share/:sessionId` result links
 - supports Cloudflare Turnstile and installable PWA behavior
 
+## Dashboard workflow
+
+Copy the active code and send it to the displayed MeshCore channel. Checks show
+**Awaiting message** without a score until a matching message is observed.
+**Details** contains secondary diagnostics, including the message hash and broker.
+
+Open **Change observers** above the map for regional, manual or nearby selection.
+The score describes the current code's saved targets; if a used code has a different
+selection, the dashboard shows the next-code targets separately and offers
+**Generate new code**. The map follows your current selection, not historical targets.
+
 ## Nearby Observer Selection
 
 `BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as
@@ -38,13 +49,17 @@ location controls and deny geolocation. **Use map center**, the search radius,
 region filters and manual observer selection remain available. Score guidance
 points to the available action. Regional guidance appears only when bootstrap
 provides usable regions, naming the selected region/group or all available
-regions; a globally unconfigured instance makes no regional claim.
+regions. It also suggests choosing a region under **Change observers** when
+usable region options exist; a globally unconfigured instance makes no regional claim.
+Activity-ranked defaults are not necessarily the best fit for the visitor's exact
+location, and neither activity nor proximity guarantees radio coverage.
 
 Every reload starts with the website-configured default observer set. Nearby,
 manual and region choices are temporary; location is optional and only requested
 on click. Used session history remains available without changing the next-code defaults.
 
-On the coverage map, click **Use my location** to select up to 10 nearest active
+Under **Change observers**, open the nearby controls and click **Use my location**
+when enabled to select up to 10 nearest active
 observers within the displayed radius (`NEARBY_DEFAULT_RADIUS=100` by default;
 options 5, 10, 15, 20, 25, 50, 75, 100, 150 and 200 in `DISTANCE_UNIT=mi|km`). No permission is requested on page load. **Use map center** lets you pan
 to an area without sharing device location; it is also the labeled fallback if
@@ -70,6 +85,9 @@ requires **Use approximate location** or **Use map center** without changing
 targets automatically. Desktop network estimates cannot be made into GPS by this
 app. Changing radius, region or manual targets cancels pending location work.
 The pending fix is memory-only and discarded on acceptance, cancellation or reload.
+Changing radius keeps the last distance results, selected observers and blue search
+origin visible until another search is applied; the status marks the new radius as
+not applied. Region/manual changes clear the nearby search context.
 
 ## Quick Start
 

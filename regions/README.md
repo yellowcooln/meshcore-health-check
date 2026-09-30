@@ -25,7 +25,17 @@ REGION_NAME_PROPERTY=name
 REGION_GROUP_PROPERTY=group
 ```
 
-When `REGIONS_FILE` is set, each observer with known coordinates is assigned to a region on startup. Region filter buttons appear above the observer list in the UI. Clicking a group selects all observers in that group; clicking a child region selects only observers in that region.
+When `REGIONS_FILE` is set, each observer with known coordinates is assigned to a
+region on startup. Open **Change observers** above the map to access region filters
+above the observer list. Clicking a group selects observers in that group;
+clicking a child region selects observers in that region. **Default Set** narrows
+that selection to activity-ranked defaults within the selected region/group.
+
+The score guidance names the current region/group and suggests regional selection
+only when usable region options are available. Region selection does not require
+browser location and remains available with `BROWSER_LOCATION_ENABLED=false`.
+See [ENVIRONMENT.md](../ENVIRONMENT.md#initial-region-and-default-set) for
+`INITIAL_REGION` and the allowed-region scope settings.
 
 For city-level US filtering, use `REGIONS_FILE=regions/us-places.geojson`.
 This uses US Census places such as cities, towns, villages, boroughs, and
@@ -37,7 +47,10 @@ should become the selectable region. Set `REGION_GROUP_PROPERTY` to the feature
 property that should become the parent group. If no group property is present,
 the UI falls back to a flat region button list.
 
-Observers without coordinates, or located outside all boundaries, get `region: null` and remain visible in the list but are not reachable via region buttons.
+Without an allowed-area restriction, observers without coordinates or outside all
+boundaries get `region: null` and remain visible in the list but are not reachable
+via region buttons. When `ALLOWED_REGIONS` or `ALLOWED_REGION_GROUPS` restricts the
+website, these unlocated/out-of-scope observers are excluded from new selections.
 
 ## Sources
 

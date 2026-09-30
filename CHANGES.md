@@ -5,22 +5,18 @@
 - added `BROWSER_LOCATION_ENABLED=true` to retain opt-in browser location by
   default; disabling it hides location/approximate controls and denies browser
   geolocation while preserving map-center, radius and manual observer choices
-- made score guidance follow actual available regions and the selected
-  region/group, with no regional claim on unconfigured global instances and a
-  map-center alternative when browser location is disabled
-- refreshed the PWA asset cache independently of the release version
-
-- explain beside the score how active-observer defaults differ from a nearby
-  selection, and point users to location-based observer selection
+- added guidance beside the score explaining why activity-ranked defaults may
+  not suit the visitor's location, with nearby selection and a map-center
+  alternative when browser location is disabled; regional wording and a region
+  selection suggestion appear only when usable region options are available
 - focused the dashboard on the active code, Copy code and channel instructions;
   observer customization and secondary diagnostics now open on demand
-- show unmatched checks as Awaiting message and unscored, including history,
+- showed unmatched checks as Awaiting message and unscored, including history,
   while preserving measured scores and historical shared-result targets
-- distinguish current-code targets from the next selection, with an explicit
+- distinguished current-code targets from the next selection, with an explicit
   Generate new code action when a used code targets a different observer set
-- preserve previous nearby distances and the blue origin while a changed radius
-  is pending; cancel location requests so late fixes cannot replace the selection
-
+- preserved previous nearby distances and the blue origin while a changed radius
+  is pending; cancelled location requests so late fixes cannot replace the selection
 - added optional browser-location and map-center selection of up to 10 nearest
   active observers, with distance labels and adjustable search radii using
   `DISTANCE_UNIT=mi|km` and `NEARBY_DEFAULT_RADIUS=100`; radii span 5 to 200

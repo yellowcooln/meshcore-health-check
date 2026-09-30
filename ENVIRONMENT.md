@@ -166,6 +166,11 @@ session. Existing retained results, target sets and scoring are not rewritten.
 MQTT ingestion/subscriptions are unchanged: this is not an IATA whitelist, and
 stored observer metadata is not deleted. Restart the container after editing.
 
+The dashboard exposes region filters under **Change observers**. Score guidance
+names the selected region/group and suggests choosing a region only when usable
+region options are provided; an unconfigured global instance has no regional claim.
+`BROWSER_LOCATION_ENABLED=false` does not disable regional or manual selection.
+
 ### Initial region and Default Set
 
 Set `INITIAL_REGION=Massachusetts` with `ALLOWED_REGION_GROUPS=New England`

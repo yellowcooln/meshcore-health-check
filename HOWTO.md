@@ -19,12 +19,14 @@ location controls and deny geolocation. **Use map center**, the search radius,
 region filters and manual observer selection remain available. Score guidance
 points to the available action. Regional guidance appears only when bootstrap
 provides usable regions, naming the selected region/group or all available
-regions; a globally unconfigured instance makes no regional claim.
+regions. When usable region options exist, the note also suggests choosing a region
+under **Change observers**; no regional suggestion appears without those options.
 
-1. Open the coverage map and choose a **Search radius**: 5, 10, 15, 20, 25, 50,
+1. Open **Change observers** above the coverage map, then choose a **Search radius**: 5, 10, 15, 20, 25, 50,
    75, 100, 150 or 200 (`NEARBY_DEFAULT_RADIUS=100` by default), in the website `DISTANCE_UNIT` (`mi` by default, or `km`). Radius changes do not change the current selection until you
-   click a location-source button again.
-2. Click **Use my location** and allow the browser prompt, or pan the map and
+   click a location-source button again. The previous distance list and blue search
+   origin remain visible, with the changed radius explicitly marked as not applied.
+2. When browser location is enabled, click **Use my location** and allow the browser prompt, or pan the map and
    click **Use map center**. HTTPS (or localhost) is required for geolocation.
    Denial, timeout and unavailable/insecure location use the current map center
    with an explicit status message. If the map itself is unavailable, use manual
@@ -35,7 +37,11 @@ regions; a globally unconfigured instance makes no regional claim.
    selection is preserved, not silently reset to defaults.
 4. Continue the normal health-check workflow: an unused waiting code can be
    replaced after selection; a used code is unchanged, so use **New Code** for
-   the new target set. Send the displayed code yourself on MeshCore.
+   the new target set (or **Generate new code** in the next-code selection notice).
+   **Current code targets** and its score retain the used code's saved observers;
+   the map previews the new selection. Send the displayed code yourself on MeshCore.
+   Unmatched checks and history show **Awaiting message**, not a failed score.
+   Open **Details** beside the code for secondary diagnostics.
 
 Only observers with `isActive: true` and a finite, positive `lastPacketAt` inside
 `observerStats.windowSeconds` qualify. The browser checks the timestamp again at
@@ -47,8 +53,10 @@ and server clocks synchronized. A disconnected feed eventually produces no
 eligible observers; restore MQTT/connectivity and retry. Activity/distances are a
 selection-time snapshot, not continuous automatic retargeting.
 
-Device coordinates are never written to browser storage, sent to the app server,
-or used to center a device marker. Observer selections are page-local and only
+Device coordinates are never written to browser storage or sent to the app server.
+A temporary blue dot marks the chosen search origin; it is not included in map
+fit bounds and is cleared when the nearby selection is cleared or the page exits.
+Observer selections are page-local and only
 keys are submitted to session APIs. Reload always restores the website default
 set, discarding old cached selections and replacing a mismatched unused waiting
 code. Used session history remains intact; defaults apply to the next code. Your browser/OS location
@@ -65,7 +73,9 @@ fresh high-accuracy estimates and show browser-reported accuracy in the configur
 a desktop browser may still return a coarse position. Check whether the status
 says browser location or map-center fallback. Serve over HTTPS (localhost is
 allowed) and ensure a reverse proxy does not override the app's
-`Permissions-Policy: geolocation=(self)` with a deny rule. Permission remains
+`Permissions-Policy` geolocation directive with a deny rule when
+`BROWSER_LOCATION_ENABLED=true`. With the setting false, `geolocation=()` is
+intentional; use map-center selection instead. Permission remains
 explicit; high accuracy is a request, not a guarantee of GPS.
 
 The footer links to the public `/privacy` page, also accessible before Turnstile
