@@ -10,6 +10,29 @@ that code.
 It does not transmit anything. It only watches MQTT, matches messages, and
 summarizes observer coverage.
 
+## Read the field utility
+
+- The compact header retains configured branding, the theme switch, the optional
+  external link and PWA install control. Copy the prominent code, then send it to
+  the channel printed directly below it. **New Code** and **Share** are secondary
+  actions next to **Copy code**.
+- Read **Observers reached** first: the count and horizontal meter show selected
+  observer reception, not a countdown or a prediction. The percentage is secondary.
+  Before a matching message, the score is `--`, targets say **Pending**, and map
+  markers are neutral. A measured zero remains a real zero, and **Not Seen** means
+  that target has not reported the measured message.
+- The score-selection explanation stays visible below the result. **Change
+  observers** opens compact checkbox rows, region controls and optional nearby
+  selection. **Saved targets** describes explicit keys retained with a code; it
+  does not imply the user selected them manually.
+- **Details** contains diagnostics. The report area has one waiting explanation;
+  **Check history** includes the current check as well as earlier browser-session
+  checks. Share pages keep their read-only result layout and saved targets.
+
+The field-utility stylesheet is app-only (`public/field-utility.css`) and is included
+in the service-worker asset cache. No environment or scoring changes are required
+for this layout. The existing CARTO key / OpenStreetMap fallback behavior is unchanged.
+
 ## Select Nearby Observers
 
 `BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as

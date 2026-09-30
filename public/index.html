@@ -19,13 +19,14 @@
     <link rel="icon" type="image/png" href="/logo.png">
     <link rel="apple-touch-icon" href="/logo.png">
     <link rel="manifest" href="/manifest.webmanifest">
-    <meta name="theme-color" content="#07111d">
+    <meta name="theme-color" content="#191c20">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
     <link rel="stylesheet" href="/styles.css">
+    <link rel="stylesheet" href="/field-utility.css">
   </head>
   <body class="noc-body" data-page-mode="app" data-ui-theme="dark">
-    <div class="screen-glow" aria-hidden="true"></div>
+
     <main class="noc-shell">
       <section class="workspace">
 
@@ -67,8 +68,9 @@
               <div class="session-sequence">
                 <div class="session-code-row">
                   <div class="session-code-block">
-                    <span class="meta-label">Active Code</span>
+                    <span class="meta-label">Transmit this code</span>
                     <div class="session-code" id="session-code">...</div>
+                    <p class="transmit-channel">Send to <strong id="transmit-channel">#health-check</strong></p>
                   </div>
                   <div class="session-code-actions">
                     <button class="control-button primary-button copy-button" id="copy-session-code" type="button">
@@ -89,33 +91,17 @@
 
               </div>
 
-              <section class="health-pocket">
-                <div class="health-pocket__head">
-                  <div>
-                    <h2 id="health-label">Waiting</h2>
-                  </div>
+              <section class="health-pocket" aria-labelledby="reception-heading">
+                <h2 id="reception-heading">Observers reached</h2>
+                <div class="reception-summary" aria-live="polite" aria-atomic="true">
+                  <strong id="observed-count">0 / 0</strong>
+                  <span id="health-label">Waiting</span>
                 </div>
-
-                <div class="health-pocket__content">
-                  <div class="score-ring">
-                    <svg class="score-ring__svg" viewBox="0 0 120 120" aria-hidden="true">
-                      <circle class="score-ring__track" cx="60" cy="60" r="50"></circle>
-                      <circle class="score-ring__fill" cx="60" cy="60" r="50"></circle>
-                    </svg>
-                    <span id="health-percent"><span class="score-num">--</span></span>
-                  </div>
-
-                  <div class="score-grid health-pocket__stats">
-                    <div class="metric-card">
-                      <span class="metric-label">Observers Reached</span>
-                      <strong id="observed-count">0 / 0</strong>
-                    </div>
-
-                  </div>
-                </div>
-                <p class="score-selection-note">Your score reflects the selected observers.</p>
+                <progress id="reception-progress" value="0" max="1" aria-label="Selected observers reached" aria-valuetext="Awaiting message; reception not yet measured">0</progress>
+                <p class="reception-score">Score <span id="health-percent"><span class="score-num">--</span></span></p>
               </section>
             </div>
+            <p class="score-selection-note">Your score reflects the selected observers.</p>
 
             <details class="session-details" id="session-details">
               <summary>Details</summary>
@@ -280,7 +266,7 @@
             <div class="observer-map" id="observer-map"></div>
             <div class="current-targets">
               <h3 id="current-target-heading">Current code targets</h3>
-              <p class="small-note" id="expected-source">Default</p>
+              <p class="small-note" id="expected-source">Saved targets</p>
               <div class="observer-badges" id="expected-observers"></div>
             </div>
           </article>
@@ -318,7 +304,7 @@
             <div class="ledger-divider" aria-hidden="true"></div>
             <div class="panel-header slim ledger-history-head">
               <div>
-                <h2>Previous checks</h2>
+                <h2>Check history</h2>
               </div>
             </div>
             <div class="history-list" id="session-history"></div>

@@ -2,6 +2,17 @@
 
 ## v1.4.0
 
+- replaced the app's gradient dashboard treatment with a compact field utility:
+  retained configured branding, code/channel-led controls, flat dark/light themes,
+  compact observer rows and an accessible count-first horizontal reception meter
+- kept waiting reception unmeasured with neutral Pending targets and map markers;
+  retained measured zero/unseen states, visible score-selection guidance and
+  existing scoring, selection, location privacy and CARTO behavior
+- consolidated the app's repeated no-report boxes, labeled history to include
+  the current check, and labeled explicit-key session targets as Saved targets
+  without implying they were chosen manually; shared-result styling is unchanged
+- added the app-only field-utility stylesheet to the PWA shell with an independent
+  asset-cache revision; release version remains 1.4.0
 - added `BROWSER_LOCATION_ENABLED=true` to retain opt-in browser location by
   default; disabling it hides location/approximate controls and denies browser
   geolocation while preserving map-center, radius and manual observer choices
