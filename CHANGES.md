@@ -2,6 +2,8 @@
 
 ## v1.4.0
 
+- explain beside the score how active-observer defaults differ from a nearby
+  selection, and point users to location-based observer selection
 - focused the dashboard on the active code, Copy code and channel instructions;
   observer customization and secondary diagnostics now open on demand
 - show unmatched checks as Awaiting message and unscored, including history,

@@ -36,9 +36,19 @@ async function openNearbyFixture(page, { mode = 'success', rows, bootstrapOverri
   await page.route('**/api/sessions/map-session', (route) => route.fulfill({ json: session }));
   await page.goto('/app');
   await expect(page.locator('#session-code')).toContainText('MHC-');
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   return observers;
 }
+
+test('score explains default observer selection and nearby alternatives', async ({ page }) => {
+  await page.goto('/app');
+  const note = page.locator('.health-pocket .score-selection-note');
+  await expect(note).toBeVisible();
+  await expect(note).toContainText('most active MQTT observers');
+  await expect(note).toContainText('not necessarily the best fit for your exact location');
+  await expect(note).toContainText('Change observers');
+  await expect(note).toContainText('Use my location');
+});
 
 test('pending radius preserves last distances and origin and cancels late location', async ({ page }) => {
   await captureMap(page);
@@ -85,7 +95,7 @@ test('nearby blue dot appears only on selection and marks the chosen point', asy
   await expect(dot).toHaveCount(1);
   expect((await origin())[0].point).toEqual(await page.evaluate(() => window.clickedCenter));
   await page.reload();
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   await expect(page.locator('#session-code')).toContainText('MHC-');
   await expect(dot).toHaveCount(0);
 });
@@ -178,7 +188,7 @@ for (const unit of ['mi', 'km']) {
     await expect(page.locator('#nearby-radius')).toHaveValue('5');
     await expect(page.locator('#nearby-results li')).toHaveCount(unit === 'mi' ? 1 : 0);
     await page.reload();
-    await page.getByText('Change observers', { exact: true }).click();
+    await page.locator('#observer-customization > summary').click();
     await expect(page.locator('#nearby-radius')).toHaveValue('15');
     expect(await page.evaluate(() => window.geoCalls)).toBe(0);
   });
@@ -203,7 +213,7 @@ test('Default Set ranks within selected state and reload restores MA markers', a
   await page.getByRole('button', { name: 'Default Set', exact: true }).click();
   await expect.poll(async () => (await mappedState(page)).markers.map((m) => /CT top/.test(m.popup))).toEqual([true]);
   await page.reload();
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   await expect.poll(async () => (await mappedState(page)).markers.map((m) => /MA observer/.test(m.popup))).toEqual([true]);
 });
 
@@ -238,7 +248,7 @@ test('All selects the allowed scope, Default Set ranks that scope, reload restor
   await expect.poll(async () => (await mappedState(page)).markers.map((m) => /CT top/.test(m.popup))).toEqual([true]);
   await expect.poll(() => targets.at(-1)).toEqual([rows[1].key]);
   await page.reload();
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   await expect.poll(async () => (await mappedState(page)).markers.map((m) => /MA observer/.test(m.popup))).toEqual([true]);
 });
 
@@ -276,7 +286,7 @@ for (const used of [false, true]) {
       const historical = { ...mapSession(rows.slice(0, 5)), status: 'active', useCount: 1 };
       await page.route('**/api/sessions/map-session', (route) => route.fulfill({ json: historical }));
       await page.reload();
-      await page.getByText('Change observers', { exact: true }).click();
+      await page.locator('#observer-customization > summary').click();
       await expect(page.locator('#observed-count')).toHaveText('0 / 5');
       await expect.poll(async () => (await mappedState(page)).markers.length).toBe(7);
     }
@@ -286,7 +296,7 @@ for (const used of [false, true]) {
     expect(region.markers.every((m) => /Transition [56]/.test(m.popup) && m.visible)).toBe(true);
     expect(region.center.lng).toBeGreaterThan(0);
     await page.reload();
-    await page.getByText('Change observers', { exact: true }).click();
+    await page.locator('#observer-customization > summary').click();
     await expect.poll(async () => (await mappedState(page)).markers.length).toBe(7);
     const defaults = await mappedState(page);
     expect(defaults.markers.every((m) => m.visible)).toBe(true);
@@ -304,7 +314,7 @@ test('used code keeps its targets and measured score until a new code uses the s
     if (request.url().endsWith('/api/sessions') && request.method() === 'POST') posts.push(request.postDataJSON());
   });
   await page.reload();
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   await expect(page.locator('#health-label')).toHaveText('VERY HEALTHY');
   await expect(page.locator('#health-percent')).toHaveText('100%');
   await expect(page.locator('#expected-observers .observer-pill')).toHaveCount(1);
@@ -328,7 +338,7 @@ test('reload resets nearby and stale storage to website defaults', async ({ page
     sessionStorage.setItem('mesh-health-check-observer-allowlist', JSON.stringify([key]));
   }, rows[0].key);
   await page.reload();
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   await expect(page.locator('#observer-allowlist-note')).toContainText('Default:');
   await expect(page.locator('#observer-allowlist input:checked')).toHaveCount(rows.length);
   await expect(page.locator('#nearby-results li')).toHaveCount(0);
@@ -345,7 +355,7 @@ test('reload preserves a used session without restoring its custom selection', a
     if (request.url().endsWith('/api/sessions') && request.method() === 'POST') posts++;
   });
   await page.reload();
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   await expect(page.locator('#observer-allowlist-note')).toContainText('Default:');
   await expect(page.locator('#observer-allowlist input:checked')).toHaveCount(rows.length);
   await expect(page.locator('#session-code')).toHaveText(used.code);
@@ -363,7 +373,7 @@ for (const unit of ['mi', 'km']) {
       return route.fulfill({ json: data });
     });
     await page.reload();
-    await page.getByText('Change observers', { exact: true }).click();
+    await page.locator('#observer-customization > summary').click();
     await expect(page.locator('#nearby-radius option:checked')).toHaveText(`100 ${unit}`);
     await page.locator('#nearby-radius').selectOption('50');
     await page.getByRole('button', { name: 'Use my location' }).click();
@@ -594,7 +604,7 @@ test('primary code comes before collapsed customization and diagnostics', async 
   await expect(page.locator('#observer-map')).toBeVisible();
   await expect(page.locator('#broker-name')).toBeHidden();
   await expect(page.getByText('Live Surface', { exact: true })).toHaveCount(0);
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
   await expect(page.locator('#nearby-location')).toBeVisible();
   await expect(page.locator('#observer-allowlist input').first()).toBeVisible();
   await page.getByText('Details', { exact: true }).click();
@@ -649,7 +659,7 @@ test('share button uses the browser share API with the retained share link', asy
 
 test('changing the observer selection updates the target and regenerates the unused code', async ({ page }) => {
   await page.goto('/app');
-  await page.getByText('Change observers', { exact: true }).click();
+  await page.locator('#observer-customization > summary').click();
 
   const sessionCode = page.locator('#session-code');
   await expect(sessionCode).toContainText('MHC-', { timeout: 10000 });

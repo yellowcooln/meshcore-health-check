@@ -6,6 +6,9 @@
   background: var(--panel-soft);
 }
 
+.score-selection-note { margin: 16px 0 0; font-size: 0.875rem; line-height: 1.6; color: var(--muted); text-transform: none; letter-spacing: normal; }
+.score-selection-note strong { color: var(--text); font-weight: 600; }
+
 .nearby-controls h3 { margin: 0 0 8px; font-size: 1rem; }
 .nearby-controls { min-width: 0; }
 .nearby-note, #map-observer-note { font-size: 0.875rem; line-height: 1.5; text-transform: none; letter-spacing: normal; color: var(--muted); }
