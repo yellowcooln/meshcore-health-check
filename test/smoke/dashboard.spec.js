@@ -81,6 +81,24 @@ test('score guidance follows available regions and selected group or region', as
   await expect(note).toContainText('across all available regions');
 });
 
+test('expanded observer controls keep filters spaced and stack at tablet widths', async ({ page }) => {
+  const rows = [mapObserver('1'.repeat(64), 'Long observer name in Massachusetts', 42, -71, 'Massachusetts')];
+  await openNearbyFixture(page, { rows, bootstrapOverrides: {
+    regionHierarchy: [{ group: 'New England', regions: ['Connecticut', 'Maine', 'Massachusetts', 'New Hampshire'].map((name) => ({ name })) }],
+  } });
+  for (const width of [1440, 1024, 978, 820, 390]) {
+    await page.setViewportSize({ width, height: 1000 });
+    const boxes = await page.evaluate(() => {
+      const rect = (selector) => { const r = document.querySelector(selector).getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; };
+      return { filters: rect('#region-filter'), list: rect('#observer-allowlist'), nearby: rect('.nearby-controls'), grid: rect('.observer-customization-grid'), overflow: document.documentElement.scrollWidth > innerWidth };
+    });
+    expect(boxes.list.top - boxes.filters.bottom).toBeGreaterThanOrEqual(12);
+    expect(boxes.nearby.right).toBeLessThanOrEqual(boxes.grid.right + 1);
+    if (width <= 1024) expect(boxes.nearby.top - boxes.list.bottom).toBeGreaterThanOrEqual(20);
+    expect(boxes.overflow).toBe(false);
+  }
+});
+
 test('score guidance on an unconfigured global instance makes no region claim', async ({ page }) => {
   await openNearbyFixture(page);
   await expect(page.locator('.score-selection-note')).not.toContainText(/region|selected area/i);

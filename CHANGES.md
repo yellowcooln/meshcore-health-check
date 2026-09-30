@@ -40,7 +40,8 @@
   explaining browser-only device-coordinate processing, local storage, retained
   results, verification cookies and third-party map/location providers
 - updated PWA asset refresh behavior, responsive map controls, operator guides
-  and environment examples for the new selection workflow
+  and environment examples for the new selection workflow; expanded observer
+  controls have separated filters/results and stack at tablet and mobile widths
 - expanded unit/API and browser coverage for geographic scope, ranked defaults,
   region/reload map transitions, location permission and accuracy, privacy access,
   mobile layout and service-worker upgrades

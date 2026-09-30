@@ -3121,8 +3121,10 @@ body[data-page-mode="app"] .observer-selection-head { margin: 16px 0 4px; }
 body[data-page-mode="app"] .session-details { margin-top: 18px; border-top: 1px solid var(--line-strong); padding-top: 8px; }
 body[data-page-mode="app"] summary { cursor: pointer; padding: 10px 0; font-weight: 600; color: var(--text); }
 body[data-page-mode="app"] summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
-body[data-page-mode="app"] .observer-customization-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 12px 0 20px; }
+body[data-page-mode="app"] .observer-customization-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 32px; margin: 16px 0 24px; align-items: start; }
 body[data-page-mode="app"] .observer-customization-grid > * { min-width: 0; }
+body[data-page-mode="app"] .observer-customization #observer-allowlist { margin-top: 16px; }
+body[data-page-mode="app"] .observer-customization .region-filter { margin-top: 16px; }
 body[data-page-mode="app"] .observer-customization .nearby-controls { margin: 0; padding: 0; border: 0; background: transparent; }
 body[data-page-mode="app"] .observer-customization .small-note,
 body[data-page-mode="app"] .current-targets .small-note,
@@ -3138,6 +3140,10 @@ body[data-page-mode="app"] .session-details .glance-card__value { font-size: 1.6
 body[data-page-mode="app"] .session-details .dock-lede { max-width: 70ch; font-size: 0.9rem; }
 body[data-page-mode="share"] .observer-selection-head,
 body[data-page-mode="share"] .observer-customization { display: none; }
+@media (max-width: 1024px) {
+  body[data-page-mode="app"] .observer-customization-grid { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  body[data-page-mode="app"] .observer-customization .nearby-controls { border-top: 1px solid var(--line-strong); padding-top: 20px; }
+}
 @media (max-width: 760px) {
   body[data-page-mode="app"] .hero-stage { grid-template-columns: 1fr; }
   body[data-page-mode="app"] .hero-stage__lead { padding: 16px 18px 8px; }
