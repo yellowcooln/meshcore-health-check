@@ -21,6 +21,7 @@ in source files.
 | `LOG_LEVEL` | `info` | Use `debug` only while troubleshooting ingest or decode behavior. |
 | `TRUST_PROXY` | `1` | Express proxy trust setting. Use `1` behind one trusted reverse proxy or `false` for direct access so client IP rate limits cannot be spoofed with forwarded headers. |
 | `DISTANCE_UNIT` | `mi` | Distance labels for packet-path estimates and nearby observer distances/search radii. Use `mi` or `km`; the nearby radius uses that unit. |
+| `BROWSER_LOCATION_ENABLED` | `true` | Offer opt-in Use my location. False hides browser/approximate location controls, denies geolocation via Permissions-Policy, and points guidance to Use map center. Map-center, radius, region and manual selection remain available. Restart/recreate required. Blank uses the default; case-insensitive `1`, `true`, `yes`, `on` enable it; all other nonblank values disable it (the standard boolean parser). |
 | `NEARBY_DEFAULT_RADIUS` | `100` | Initial/reload nearby radius in `DISTANCE_UNIT`. Allowed values: 5, 10, 15, 20, 25, 50, 75, 100, 150, 200. Other values fail startup with an explicit error. Snapshot updates preserve the visitor's choice. |
 
 As of August 2026, CARTO requires an API key for Dark Matter raster tiles. Keep

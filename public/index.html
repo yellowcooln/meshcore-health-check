@@ -113,7 +113,7 @@
 
                   </div>
                 </div>
-                <p class="score-selection-note">Your score reflects the selected observers. Automatic defaults favor the most active MQTT observers in the selected area - not necessarily the best fit for your exact location. Open <strong>Change observers</strong> and choose <strong>Use my location</strong> under Nearby observers to find a more relevant set.</p>
+                <p class="score-selection-note">Your score reflects the selected observers.</p>
               </section>
             </div>
 
@@ -267,11 +267,11 @@
                         <option value="200">200 mi</option>
                       </select>
                     </label>
-                    <button class="control-button ghost-button" id="nearby-location" type="button">Use my location</button>
+                    <button class="control-button ghost-button" id="nearby-location" type="button" hidden>Use my location</button>
                     <button class="control-button ghost-button" id="nearby-approximate" type="button" hidden>Use approximate location</button>
                     <button class="control-button ghost-button" id="nearby-center" type="button">Use map center</button>
                   </div>
-                  <p class="nearby-note">Location stays in your browser. If unavailable, we use the map center. Reload restores defaults.</p>
+                  <p class="nearby-note" id="nearby-location-note">Pan the map and choose Use map center. Reload restores defaults.</p>
                   <p class="nearby-note" id="nearby-status" role="status" aria-live="polite">Website default set selected.</p>
                   <ol class="nearby-results" id="nearby-results" aria-label="Nearby observer distances"></ol>
                 </section>

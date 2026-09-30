@@ -26,7 +26,11 @@ async function openNearbyFixture(page, { mode = 'success', rows, bootstrapOverri
     } });
     if (mode === 'insecure') Object.defineProperty(window, 'isSecureContext', { value: false });
   }, mode);
-  await page.route('**/api/bootstrap', (route) => route.fulfill({ json: { ...mapBootstrap(observers, ''), ...bootstrapOverrides } }));
+  const bootstrap = mapBootstrap(observers, '');
+  await page.route('**/api/bootstrap', (route) => route.fulfill({ json: {
+    ...bootstrap, ...bootstrapOverrides,
+    observerStats: { ...bootstrap.observerStats, ...bootstrapOverrides.observerStats },
+  } }));
   let session;
   await page.route('**/api/sessions', (route) => {
     const keys = route.request().postDataJSON().expectedObserverKeys;
@@ -38,6 +42,76 @@ async function openNearbyFixture(page, { mode = 'success', rows, bootstrapOverri
   await expect(page.locator('#session-code')).toContainText('MHC-');
   await page.locator('#observer-customization > summary').click();
   return observers;
+}
+
+test('disabled browser location keeps map-center and manual choices without geolocation', async ({ page }) => {
+  await openNearbyFixture(page, { bootstrapOverrides: { observerStats: { browserLocationEnabled: false, windowSeconds: 900 } } });
+  await expect(page.locator('#nearby-location')).toBeHidden();
+  await expect(page.locator('#nearby-approximate')).toBeHidden();
+  await expect(page.locator('.score-selection-note')).toContainText('Use map center');
+  await expect(page.locator('.score-selection-note')).not.toContainText('Use my location');
+  await page.evaluate(() => {
+    document.querySelector('#nearby-location').dispatchEvent(new Event('click'));
+    document.querySelector('#nearby-approximate').dispatchEvent(new Event('click'));
+  });
+  expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+  await page.locator('#nearby-center').click();
+  await expect(page.locator('#nearby-status')).toContainText('10 selected');
+  const key = await page.locator('#observer-allowlist input:checked').first().inputValue();
+  await page.locator(`#observer-allowlist input[value="${key}"]`).uncheck();
+  await expect(page.locator('#observer-allowlist input:checked')).toHaveCount(9);
+  expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+});
+
+test('score guidance follows available regions and selected group or region', async ({ page }) => {
+  const rows = [mapObserver('1'.repeat(64), 'One', 42, -71, 'Alpha'), mapObserver('2'.repeat(64), 'Two', 42, -71, 'Beta')];
+  rows[0].regionGroup = 'North';
+  rows[1].regionGroup = 'South';
+  await openNearbyFixture(page, { rows, bootstrapOverrides: {
+    regionHierarchy: [{ group: 'North', regions: [{ name: 'Alpha' }] }, { group: 'South', regions: [{ name: 'Beta' }] }],
+  } });
+  const note = page.locator('.score-selection-note');
+  await expect(note).toContainText('across all available regions');
+  await page.getByRole('button', { name: 'North', exact: true }).click();
+  await expect(note).toContainText('in the selected region group (North)');
+  await page.getByRole('button', { name: 'Alpha', exact: true }).click();
+  await expect(note).toContainText('in the selected region (Alpha)');
+  await page.getByRole('button', { name: 'All regions', exact: true }).click();
+  await expect(note).toContainText('across all available regions');
+});
+
+test('score guidance on an unconfigured global instance makes no region claim', async ({ page }) => {
+  await openNearbyFixture(page);
+  await expect(page.locator('.score-selection-note')).not.toContainText(/region|selected area/i);
+  await expect(page.locator('#nearby-location')).toBeVisible();
+  expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+});
+
+for (const enabled of [true, false]) {
+  test(`browser location ${enabled} preserves shared historical targets without requests`, async ({ page }) => {
+    const observers = await openNearbyFixture(page, { bootstrapOverrides: { observerStats: { browserLocationEnabled: enabled, windowSeconds: 900 } } });
+    await page.route('**/api/sessions/map-session', (route) => route.fulfill({ json: {
+      ...mapSession([observers[0]]), useCount: 1, observedCount: 1, healthPercent: 100, healthLabel: 'EXCELLENT',
+    } }));
+    await page.goto('/share/map-session');
+    await expect(page.locator('#health-percent')).toHaveText('100%');
+    await expect(page.locator('#expected-observers .observer-pill')).toHaveCount(1);
+    await expect(page.locator('#nearby-location')).toBeHidden();
+    await expect(page.locator('#nearby-approximate')).toBeHidden();
+    await expect(page.locator('#nearby-location')).toHaveCount(0);
+    expect(await page.evaluate(() => window.geoCalls)).toBe(0);
+  });
+
+  test(`browser location ${enabled} guidance fits desktop and mobile`, async ({ page }, testInfo) => {
+    await openNearbyFixture(page, { bootstrapOverrides: { observerStats: { browserLocationEnabled: enabled, windowSeconds: 900 } } });
+    for (const [label, width, height] of [['desktop', 1440, 1000], ['mobile', 390, 844]]) {
+      await page.setViewportSize({ width, height });
+      await expect(page.locator('.score-selection-note')).toContainText(enabled ? 'Use my location' : 'Use map center');
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+      await page.locator('.score-selection-note').screenshot({ path: testInfo.outputPath(`${label}-score.png`) });
+      await page.locator('.nearby-controls').screenshot({ path: testInfo.outputPath(`${label}-controls.png`) });
+    }
+  });
 }
 
 test('score explains default observer selection and nearby alternatives', async ({ page }) => {

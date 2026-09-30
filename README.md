@@ -31,6 +31,15 @@ Other community Health Checks:
 
 ## Nearby Observer Selection
 
+`BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as
+an explicit visitor action; it never requests permission on load. Set it to
+`false` in `.env` and restart/recreate the app to hide browser and approximate
+location controls and deny geolocation. **Use map center**, the search radius,
+region filters and manual observer selection remain available. Score guidance
+points to the available action. Regional guidance appears only when bootstrap
+provides usable regions, naming the selected region/group or all available
+regions; a globally unconfigured instance makes no regional claim.
+
 Every reload starts with the website-configured default observer set. Nearby,
 manual and region choices are temporary; location is optional and only requested
 on click. Used session history remains available without changing the next-code defaults.

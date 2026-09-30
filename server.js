@@ -345,6 +345,7 @@ const SITE_URL = normalizeSiteUrl(envValue('SITE_URL', ''));
 const CORESCOPE_URL = normalizeSiteUrl(envValue('CORESCOPE_URL', ''));
 const CARTO_BASEMAP_KEY = envValue('CARTO_BASEMAP_KEY', '');
 const DISTANCE_UNIT = normalizeDistanceUnit(envValue('DISTANCE_UNIT', 'mi'));
+const BROWSER_LOCATION_ENABLED = envBool('BROWSER_LOCATION_ENABLED', true);
 const NEARBY_DEFAULT_RADIUS = Number(envValue('NEARBY_DEFAULT_RADIUS', '100'));
 if (![5, 10, 15, 20, 25, 50, 75, 100, 150, 200].includes(NEARBY_DEFAULT_RADIUS)) {
   throw new Error('NEARBY_DEFAULT_RADIUS must be one of 5, 10, 15, 20, 25, 50, 75, 100, 150, 200 (in DISTANCE_UNIT)');
@@ -2430,6 +2431,7 @@ function snapshotPayload() {
       hashDisplayBytes: OBSERVER_HASH_DISPLAY_BYTES,
       distanceUnit: DISTANCE_UNIT,
       nearbyDefaultRadius: NEARBY_DEFAULT_RADIUS,
+      browserLocationEnabled: BROWSER_LOCATION_ENABLED,
     },
     results: {
       retentionSeconds: Math.round(RESULT_RETENTION_MS / 1000),
@@ -2936,7 +2938,7 @@ app.use((request, response, next) => {
   response.setHeader('X-Content-Type-Options', 'nosniff');
   response.setHeader('X-Frame-Options', 'DENY');
   response.setHeader('Referrer-Policy', 'no-referrer');
-  response.setHeader('Permissions-Policy', 'camera=(), geolocation=(self), microphone=()');
+  response.setHeader('Permissions-Policy', `camera=(), geolocation=(${BROWSER_LOCATION_ENABLED ? 'self' : ''}), microphone=()`);
   if (request.path.startsWith('/api/') || request.path.startsWith('/share/')) {
     response.setHeader('Cache-Control', 'no-store');
   }

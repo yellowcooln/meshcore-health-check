@@ -1358,8 +1358,38 @@ function nearbyDistanceUnit() {
   return state.snapshot?.observerStats?.distanceUnit === 'km' ? 'km' : 'mi';
 }
 
+function browserLocationEnabled() {
+  return Boolean(state.snapshot) && state.snapshot.observerStats?.browserLocationEnabled !== false && !isSharePage();
+}
+
+function renderScoreSelectionNote() {
+  const note = document.querySelector('.score-selection-note');
+  if (!note) return;
+  if (isSharePage()) {
+    note.textContent = 'This score reflects the observers saved with this result.';
+    return;
+  }
+  const { regions } = regionFilterOptions();
+  const hasRegions = regions.some((entry) => entry.regions.length > 0);
+  const scope = !hasRegions ? '' : state.selectedRegion
+    ? ` in the selected region (${escapeHtml(state.selectedRegion)})`
+    : state.selectedRegionGroup
+      ? ` in the selected region group (${escapeHtml(state.selectedRegionGroup)})`
+      : ' across all available regions';
+  const action = browserLocationEnabled() ? 'Use my location' : 'Use map center';
+  note.innerHTML = `Your score reflects the selected observers. Automatic defaults favor the most active MQTT observers${scope} - not necessarily the best fit for your exact location. Open <strong>Change observers</strong> and choose <strong>${action}</strong> under Nearby observers to find a more relevant set.`;
+}
+
 function renderNearbySelection() {
   if (!ui.nearbyStatus || !ui.nearbyResults) return;
+  const enabled = browserLocationEnabled();
+  ui.nearbyLocation.hidden = !enabled;
+  if (!enabled) cancelNearbyRequest();
+  const locationNote = document.querySelector('#nearby-location-note');
+  if (locationNote) locationNote.textContent = enabled
+    ? 'Location stays in your browser. If unavailable, we use the map center. Reload restores defaults.'
+    : 'Pan the map and choose Use map center. Reload restores defaults.';
+  renderScoreSelectionNote();
   const unit = nearbyDistanceUnit();
   if (state.snapshot && !state.nearbyRadiusInitialized) {
     ui.nearbyRadius.value = String(state.snapshot.observerStats?.nearbyDefaultRadius || 100);
@@ -1423,7 +1453,7 @@ function selectNearbyMapCenter(prefix = '') {
 }
 
 function requestNearbyLocation() {
-  if (!state.snapshot || isSharePage()) return;
+  if (!browserLocationEnabled()) return;
   cancelNearbyRequest();
   const request = state.nearbyRequest;
   if (!window.isSecureContext || !navigator.geolocation) {
@@ -1459,6 +1489,7 @@ function requestNearbyLocation() {
 
 window.addEventListener('pagehide', clearNearbySelection);
 document.querySelector('#nearby-approximate')?.addEventListener('click', () => {
+  if (!browserLocationEnabled()) return;
   const pending = state.nearbyApproximate;
   if (!pending) return;
   clearNearbySelection();

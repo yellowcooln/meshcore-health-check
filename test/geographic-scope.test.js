@@ -50,6 +50,20 @@ async function fixture(overrides, run) {
   }
 }
 
+for (const [value, enabled] of [['', true], ['true', true], [' YES ', true], ['1', true], ['on', true], ['false', false], ['0', false], ['off', false], ['no', false], ['invalid', false]]) {
+  test(`browser location config ${JSON.stringify(value)} is ${enabled}`, () => fixture({ BROWSER_LOCATION_ENABLED: value }, async ({ bootstrap, url }) => {
+    assert.equal((await bootstrap()).observerStats.browserLocationEnabled, enabled);
+    const response = await fetch(`${url}/app`);
+    assert.ok(response.headers.get('permissions-policy').includes(enabled ? 'geolocation=(self)' : 'geolocation=()'));
+  }));
+}
+
+test('unconfigured global bootstrap has no available regional choices', () => fixture({ REGIONS_FILE: '' }, async ({ bootstrap }) => {
+  const snapshot = await bootstrap();
+  assert.deepEqual(snapshot.availableRegions, []);
+  assert.deepEqual(snapshot.regionHierarchy, []);
+}));
+
 test('scope retains historical out-of-scope targets, receipts and scores across persistence', () => fixture({ ALLOWED_REGION_GROUPS: 'New England' }, async ({ url, create, mod, dir }) => {
   const session = await (await fetch(`${url}/api/sessions/historical`)).json();
   assert.deepEqual(session.expectedObservers.map((o) => o.key), [keys[1]]);

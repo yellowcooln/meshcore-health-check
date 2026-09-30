@@ -12,6 +12,15 @@ summarizes observer coverage.
 
 ## Select Nearby Observers
 
+`BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as
+an explicit visitor action; it never requests permission on load. Set it to
+`false` in `.env` and restart/recreate the app to hide browser and approximate
+location controls and deny geolocation. **Use map center**, the search radius,
+region filters and manual observer selection remain available. Score guidance
+points to the available action. Regional guidance appears only when bootstrap
+provides usable regions, naming the selected region/group or all available
+regions; a globally unconfigured instance makes no regional claim.
+
 1. Open the coverage map and choose a **Search radius**: 5, 10, 15, 20, 25, 50,
    75, 100, 150 or 200 (`NEARBY_DEFAULT_RADIUS=100` by default), in the website `DISTANCE_UNIT` (`mi` by default, or `km`). Radius changes do not change the current selection until you
    click a location-source button again.

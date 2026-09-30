@@ -2,6 +2,14 @@
 
 ## v1.4.0
 
+- added `BROWSER_LOCATION_ENABLED=true` to retain opt-in browser location by
+  default; disabling it hides location/approximate controls and denies browser
+  geolocation while preserving map-center, radius and manual observer choices
+- made score guidance follow actual available regions and the selected
+  region/group, with no regional claim on unconfigured global instances and a
+  map-center alternative when browser location is disabled
+- refreshed the PWA asset cache independently of the release version
+
 - explain beside the score how active-observer defaults differ from a nearby
   selection, and point users to location-based observer selection
 - focused the dashboard on the active code, Copy code and channel instructions;
