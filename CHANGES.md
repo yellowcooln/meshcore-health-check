@@ -2,6 +2,15 @@
 
 ## v1.4.0
 
+- focused the dashboard on the active code, Copy code and channel instructions;
+  observer customization and secondary diagnostics now open on demand
+- show unmatched checks as Awaiting message and unscored, including history,
+  while preserving measured scores and historical shared-result targets
+- distinguish current-code targets from the next selection, with an explicit
+  Generate new code action when a used code targets a different observer set
+- preserve previous nearby distances and the blue origin while a changed radius
+  is pending; cancel location requests so late fixes cannot replace the selection
+
 - added optional browser-location and map-center selection of up to 10 nearest
   active observers, with distance labels and adjustable search radii using
   `DISTANCE_UNIT=mi|km` and `NEARBY_DEFAULT_RADIUS=100`; radii span 5 to 200

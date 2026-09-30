@@ -3062,6 +3062,91 @@ body[data-ui-theme="light"] .drawer-codeblock {
   color: #1f4ca6;
 }
 
+/* Focus the dashboard on sending a code; keep secondary controls discoverable. */
+body[data-page-mode="app"] .hero-stage {
+  grid-template-columns: minmax(0, 1fr) auto;
+  border-radius: 22px;
+}
+body[data-page-mode="app"] .hero-stage__lead,
+body[data-page-mode="app"] .hero-stage__brief {
+  padding: 18px 22px;
+  gap: 0;
+  align-content: center;
+}
+body[data-page-mode="app"] .hero-stage__lead .brand-copy h1 {
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  line-height: 1.15;
+}
+body[data-page-mode="app"] .hero-stage__brief,
+body[data-page-mode="app"][data-ui-theme="light"] .hero-stage__brief {
+  border: 0;
+}
+body[data-page-mode="app"] .hero-stage .brand-orb { width: 48px; height: 48px; }
+body[data-page-mode="app"] .hero-stage .brand-copy .eyebrow { margin-bottom: 6px; }
+body[data-page-mode="app"] .hero-stage__brief .control-utility-actions { grid-template-columns: repeat(3, auto); }
+body[data-page-mode="app"] .hero-stage .dock-brand { justify-content: flex-start; align-items: center; }
+body[data-page-mode="app"] .hero-stage__brief .control-utility-actions { position: static; display: flex; flex-direction: row; flex-wrap: wrap; width: auto; }
+body[data-page-mode="app"] .hero-stage__brief .control-utility-actions .control-button { white-space: nowrap; }
+body[data-page-mode="app"] .panel > *,
+body[data-page-mode="app"] .glance-card > * { position: relative; z-index: 1; }
+body[data-page-mode="app"] .current-targets .observer-badges { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 8px; }
+body[data-page-mode="app"] .current-targets .observer-pill { min-height: 0; padding: 10px 12px; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 8px; }
+body[data-page-mode="app"] .current-targets .observer-main { gap: 2px; }
+body[data-page-mode="app"] .current-targets .observer-pill .status { padding: 4px 6px; font-size: 0.68rem; letter-spacing: 0; }
+body[data-page-mode="app"] .observer-selector { scrollbar-width: auto; scrollbar-color: var(--muted) var(--bg-alt); border-bottom: 1px solid var(--line-strong); }
+body[data-page-mode="app"] .observer-option { min-height: 0; padding: 10px; }
+body[data-page-mode="app"] .observer-option-copy { gap: 3px; }
+body[data-page-mode="app"] .session-share-note { margin-top: 18px; }
+body[data-page-mode="app"] .timeline-block { margin-top: 20px; }
+body[data-page-mode="app"] .timeline-block h3 { font-size: 1rem; }
+body[data-page-mode="app"] .next-code-selection { margin: 8px 0 16px; }
+body[data-page-mode="app"] .next-code-selection p { line-height: 1.5; margin: 0 0 8px; }
+body[data-page-mode="app"] .next-code-selection button { white-space: normal; text-transform: none; letter-spacing: normal; }
+body[data-page-mode="app"] .marquee-layout { margin-top: 0; }
+body[data-page-mode="app"] .session-code-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+body[data-page-mode="app"] .session-code-actions > * { flex: 0 1 auto; }
+body[data-page-mode="app"] .health-pocket__head h2 { font-size: clamp(1.4rem, 2vw, 2rem); line-height: 1.2; }
+body[data-page-mode="app"] .health-pocket__stats { grid-template-columns: 1fr; }
+body[data-page-mode="app"] .dashboard-grid {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "map" "ledger";
+}
+body[data-page-mode="app"] .spotlight-panel .observer-map { min-height: 400px; }
+body[data-page-mode="app"] .selection-summary { margin: 0; font-weight: 600; }
+body[data-page-mode="app"] .observer-selection-head { margin: 16px 0 4px; }
+body[data-page-mode="app"] .session-details { margin-top: 18px; border-top: 1px solid var(--line-strong); padding-top: 8px; }
+body[data-page-mode="app"] summary { cursor: pointer; padding: 10px 0; font-weight: 600; color: var(--text); }
+body[data-page-mode="app"] summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
+body[data-page-mode="app"] .observer-customization-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 12px 0 20px; }
+body[data-page-mode="app"] .observer-customization-grid > * { min-width: 0; }
+body[data-page-mode="app"] .observer-customization .nearby-controls { margin: 0; padding: 0; border: 0; background: transparent; }
+body[data-page-mode="app"] .observer-customization .small-note,
+body[data-page-mode="app"] .current-targets .small-note,
+body[data-page-mode="app"] .session-details .small-note { text-transform: none; letter-spacing: normal; }
+body[data-page-mode="app"] .current-targets { margin: 12px 0; }
+body[data-page-mode="app"] .current-targets h3 { font-size: 0.95rem; margin: 0 0 6px; }
+body[data-page-mode="app"] .current-targets .observer-badges { margin-top: 8px; }
+body[data-page-mode="app"] .diagnostic-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 16px; }
+body[data-page-mode="app"] .diagnostic-grid .metric-card { background: none; border: 0; padding: 12px 0; }
+body[data-page-mode="app"] .session-details .dock-status-stack { margin: 16px 0; }
+body[data-page-mode="app"] .session-details .telemetry-strip { margin-top: 16px; }
+body[data-page-mode="app"] .session-details .glance-card__value { font-size: 1.6rem; }
+body[data-page-mode="app"] .session-details .dock-lede { max-width: 70ch; font-size: 0.9rem; }
+body[data-page-mode="share"] .observer-selection-head,
+body[data-page-mode="share"] .observer-customization { display: none; }
+@media (max-width: 760px) {
+  body[data-page-mode="app"] .hero-stage { grid-template-columns: 1fr; }
+  body[data-page-mode="app"] .hero-stage__lead { padding: 16px 18px 8px; }
+  body[data-page-mode="app"] .hero-stage__brief { padding: 8px 18px 16px; }
+  body[data-page-mode="app"] .hero-stage__brief .control-utility-actions { display: flex; flex-wrap: wrap; }
+  body[data-page-mode="app"] .marquee-layout { grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  body[data-page-mode="app"] .health-pocket { border-left: 0; border-top: 1px solid var(--line-strong); padding: 16px 0 0; }
+  body[data-page-mode="app"] .health-pocket__content { grid-template-columns: auto 1fr; }
+  body[data-page-mode="app"] .observer-customization-grid { grid-template-columns: minmax(0, 1fr); }
+  body[data-page-mode="app"] .diagnostic-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body[data-page-mode="app"] .spotlight-panel .observer-map { min-height: 320px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

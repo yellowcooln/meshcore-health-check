@@ -28,15 +28,7 @@
     <div class="screen-glow" aria-hidden="true"></div>
     <main class="noc-shell">
       <section class="workspace">
-        <div class="splash-scene" aria-hidden="true">
-          <span class="splash-scene__mesh"></span>
-          <span class="splash-scene__beam"></span>
-          <span class="splash-scene__grid"></span>
-          <span class="splash-scene__ring splash-scene__ring--left"></span>
-          <span class="splash-scene__ring splash-scene__ring--right"></span>
-          <span class="splash-scene__badge splash-scene__badge--one">Adaptive mesh</span>
-          <span class="splash-scene__badge splash-scene__badge--two">Map + trace</span>
-        </div>
+
         <section class="hero-stage">
           <article class="hero-panel hero-stage__lead">
             <div class="dock-brand">
@@ -49,32 +41,10 @@
               </div>
             </div>
 
-            <p class="dock-lede lede">
-              <span id="hero-description-prefix">Generate a test code, send it to</span>
-              <strong id="hero-channel">#health-check</strong>
-              <span id="hero-description-suffix">and watch the observers that receive the message report back in real time.</span>
-            </p>
-
-            <div class="hero-stage__pulse">
-              <span class="hero-stage__pulse-dot" aria-hidden="true"></span>
-              <div>
-                <p class="panel-label">Live Surface</p>
-                <p class="small-note">An always-on scan view with oversized signal cues and a single continuous command story.</p>
-              </div>
-            </div>
-
           </article>
 
           <article class="hero-panel hero-stage__brief">
             <div class="control-center-head">
-              <div class="toolbar-copy">
-                <p class="toolbar-label">Control Center</p>
-                <div>
-                  <h2>Health at a glance</h2>
-                  <p>Track the active code, monitor the live transport state, and pivot into map or trace detail without leaving the main stage.</p>
-                </div>
-              </div>
-
               <div class="control-utility-actions">
                 <button class="control-button ghost-button" id="ui-theme-toggle" type="button">
                   Light Mode
@@ -86,63 +56,12 @@
               </div>
             </div>
 
-            <div class="dock-status-stack">
-              <span class="pill status-pill" id="mqtt-pill">MQTT offline</span>
-              <div class="dock-note">
-                <span class="meta-label">Observer Window</span>
-                <strong id="network-window">Awaiting bootstrap</strong>
-              </div>
-            </div>
-
           </article>
 
-          <section class="glance-grid telemetry-strip" id="health-at-a-glance">
-            <article class="glance-card telemetry-strip__item">
-            <div class="glance-card__head">
-              <span class="panel-label">Transport</span>
-            </div>
-            <strong class="glance-card__value" id="network-state">Offline</strong>
-            <div class="sparkline" id="observer-sparkline" aria-hidden="true"></div>
-            <p class="small-note" id="observer-density-label">Awaiting observer directory.</p>
-            </article>
-
-            <article class="glance-card telemetry-strip__item">
-            <div class="glance-card__head">
-              <span class="panel-label">Node Count</span>
-            </div>
-            <strong class="glance-card__value" id="observer-density">0 / 0</strong>
-            <div class="sparkline" id="observer-load-sparkline" aria-hidden="true"></div>
-            <p class="small-note" id="observer-density-detail">No observer telemetry yet.</p>
-            </article>
-
-            <article class="glance-card telemetry-strip__item">
-            <div class="glance-card__head">
-              <span class="panel-label">Signal Quality</span>
-            </div>
-            <strong class="glance-card__value" id="signal-quality">--</strong>
-            <div class="sparkline" id="signal-sparkline" aria-hidden="true"></div>
-            <p class="small-note" id="signal-quality-label">Awaiting telemetry.</p>
-            </article>
-
-            <article class="glance-card telemetry-strip__item">
-            <div class="glance-card__head">
-              <span class="panel-label">Receipt Spread</span>
-            </div>
-            <strong class="glance-card__value" id="latency-score">--</strong>
-            <div class="sparkline" id="latency-sparkline" aria-hidden="true"></div>
-            <p class="small-note" id="latency-label">Awaiting receipt spread.</p>
-            </article>
-          </section>
         </section>
 
         <section class="command-grid">
           <article class="panel command-panel marquee-panel" id="command-center">
-            <div class="panel-header">
-              <div>
-                <p class="panel-label">Command Sequence</p>
-                <h2>Session Control</h2>
-              </div>
-            </div>
 
             <div class="marquee-layout">
               <div class="session-sequence">
@@ -152,12 +71,13 @@
                     <div class="session-code" id="session-code">...</div>
                   </div>
                   <div class="session-code-actions">
-                    <button class="control-button primary-button" id="new-session-button" type="button">
+                    <button class="control-button primary-button copy-button" id="copy-session-code" type="button">
+                      Copy code
+                    </button>
+                    <button class="control-button ghost-button" id="new-session-button" type="button">
                       New Code
                     </button>
-                    <button class="control-button ghost-button copy-button" id="copy-session-code" type="button">
-                      Copy
-                    </button>
+
                     <button class="control-button ghost-button copy-button" id="share-session" type="button">
                       Share
                     </button>
@@ -166,25 +86,12 @@
                 <p class="session-instructions" id="session-instructions">
                   Loading session…
                 </p>
-                <p class="small-note session-share-note" id="session-share-note">
-                  Shared links are kept for one week by default.
-                </p>
-                <div class="session-meta">
-                  <div class="metric-card compact">
-                    <span class="meta-label">Status</span>
-                    <strong id="session-status">Waiting</strong>
-                  </div>
-                  <div class="metric-card compact">
-                    <span class="meta-label">Message Hash</span>
-                    <strong><a class="hash-link pending" id="session-hash" href="#" rel="noopener noreferrer" target="_blank">Pending</a></strong>
-                  </div>
-                </div>
+
               </div>
 
               <section class="health-pocket">
                 <div class="health-pocket__head">
                   <div>
-                    <p class="panel-label">Current Health</p>
                     <h2 id="health-label">Waiting</h2>
                   </div>
                 </div>
@@ -195,7 +102,7 @@
                       <circle class="score-ring__track" cx="60" cy="60" r="50"></circle>
                       <circle class="score-ring__fill" cx="60" cy="60" r="50"></circle>
                     </svg>
-                    <span id="health-percent"><span class="score-num">0</span><span class="score-unit">%</span></span>
+                    <span id="health-percent"><span class="score-num">--</span></span>
                   </div>
 
                   <div class="score-grid health-pocket__stats">
@@ -203,35 +110,108 @@
                       <span class="metric-label">Observers Reached</span>
                       <strong id="observed-count">0 / 0</strong>
                     </div>
-                    <div class="metric-card">
-                      <span class="metric-label">Sender</span>
-                      <strong id="sender-name">Pending</strong>
-                    </div>
-                    <div class="metric-card">
-                      <span class="metric-label">Repeaters</span>
-                      <strong id="repeater-count">0</strong>
-                    </div>
-                    <div class="metric-card">
-                      <span class="metric-label">Longest Packet</span>
-                      <strong id="longest-packet-distance">--</strong>
-                    </div>
-                    <div class="metric-card">
-                      <span class="metric-label">Channel</span>
-                      <strong id="channel-name">#health-check</strong>
-                    </div>
-                    <div class="metric-card">
-                      <span class="metric-label">Broker</span>
-                      <strong id="broker-name">Loading</strong>
-                    </div>
+
                   </div>
                 </div>
               </section>
             </div>
 
+            <details class="session-details" id="session-details">
+              <summary>Details</summary>
+              <div class="session-meta">
+                <div class="metric-card compact">
+                  <span class="meta-label">Status</span>
+                  <strong id="session-status">Waiting</strong>
+                </div>
+                <div class="metric-card compact">
+                  <span class="meta-label">Message Hash</span>
+                  <strong><a class="hash-link pending" id="session-hash" href="#" rel="noopener noreferrer" target="_blank">Pending</a></strong>
+                </div>
+              </div>
+
+              <div class="diagnostic-grid">
+                <div class="metric-card">
+                  <span class="metric-label">Sender</span>
+                  <strong id="sender-name">Pending</strong>
+                </div>
+                <div class="metric-card">
+                  <span class="metric-label">Repeaters</span>
+                  <strong id="repeater-count">0</strong>
+                </div>
+                <div class="metric-card">
+                  <span class="metric-label">Longest Packet</span>
+                  <strong id="longest-packet-distance">--</strong>
+                </div>
+                <div class="metric-card">
+                  <span class="metric-label">Channel</span>
+                  <strong id="channel-name">#health-check</strong>
+                </div>
+                <div class="metric-card">
+                  <span class="metric-label">Broker</span>
+                  <strong id="broker-name">Loading</strong>
+                </div>
+              </div>
+              <div class="dock-status-stack">
+                <span class="pill status-pill" id="mqtt-pill">MQTT offline</span>
+                <div class="dock-note">
+                  <span class="meta-label">Observer Window</span>
+                  <strong id="network-window">Awaiting bootstrap</strong>
+                </div>
+              </div>
+
+              <section class="glance-grid telemetry-strip" id="health-at-a-glance">
+                <article class="glance-card telemetry-strip__item">
+                  <div class="glance-card__head">
+                    <span class="panel-label">Transport</span>
+                  </div>
+                  <strong class="glance-card__value" id="network-state">Offline</strong>
+                  <div class="sparkline" id="observer-sparkline" aria-hidden="true"></div>
+                  <p class="small-note" id="observer-density-label">Awaiting observer directory.</p>
+                </article>
+
+                <article class="glance-card telemetry-strip__item">
+                  <div class="glance-card__head">
+                    <span class="panel-label">Node Count</span>
+                  </div>
+                  <strong class="glance-card__value" id="observer-density">0 / 0</strong>
+                  <div class="sparkline" id="observer-load-sparkline" aria-hidden="true"></div>
+                  <p class="small-note" id="observer-density-detail">No observer telemetry yet.</p>
+                </article>
+
+                <article class="glance-card telemetry-strip__item">
+                  <div class="glance-card__head">
+                    <span class="panel-label">Signal Quality</span>
+                  </div>
+                  <strong class="glance-card__value" id="signal-quality">--</strong>
+                  <div class="sparkline" id="signal-sparkline" aria-hidden="true"></div>
+                  <p class="small-note" id="signal-quality-label">Awaiting telemetry.</p>
+                </article>
+
+                <article class="glance-card telemetry-strip__item">
+                  <div class="glance-card__head">
+                    <span class="panel-label">Receipt Spread</span>
+                  </div>
+                  <strong class="glance-card__value" id="latency-score">--</strong>
+                  <div class="sparkline" id="latency-sparkline" aria-hidden="true"></div>
+                  <p class="small-note" id="latency-label">Awaiting receipt spread.</p>
+                </article>
+              </section>
+              <p class="small-note session-share-note" id="session-share-note">
+                Shared links are kept for one week by default.
+              </p>
+              <p class="dock-lede lede">
+                <span id="hero-description-prefix">Generate a test code, send it to</span>
+                <strong id="hero-channel">#health-check</strong>
+                <span id="hero-description-suffix">and watch the observers that receive the message report back in real time.</span>
+              </p>
+
+
             <div class="message-preview">
               <span class="meta-label">Matched Message</span>
               <p id="message-preview">Waiting for your #health-check message.</p>
             </div>
+            </details>
+
           </article>
         </section>
 
@@ -239,7 +219,6 @@
           <article class="panel map-panel spotlight-panel" id="coverage-map">
             <div class="panel-header slim">
               <div>
-                <p class="panel-label">Coverage Map</p>
                 <h2>Where the observers are</h2>
               </div>
             </div>
@@ -247,67 +226,67 @@
             <div class="empty-state compact hidden" id="map-empty">
               No saved observer coordinates yet. The app will learn them from MQTT metadata and store them in <code>data/observer.json</code>.
             </div>
-            <section class="nearby-controls" aria-labelledby="nearby-heading">
-              <h3 id="nearby-heading">Nearby observers (optional)</h3>
-              <p class="nearby-note">Use the website default set, or choose up to 10 nearby observers for this visit.</p>
-              <div class="nearby-actions">
-                <label for="nearby-radius">Search radius
-                  <select id="nearby-radius">
-                    <option value="5">5 mi</option>
-                    <option value="10">10 mi</option>
-                    <option value="15">15 mi</option>
-                    <option value="20">20 mi</option>
-                    <option value="25">25 mi</option>
-                    <option value="50">50 mi</option>
-                    <option value="75">75 mi</option>
-                    <option value="100" selected>100 mi</option>
-                    <option value="150">150 mi</option>
-                    <option value="200">200 mi</option>
-                  </select>
-                </label>
-                <button class="control-button ghost-button" id="nearby-location" type="button">Use my location</button>
-                <button class="control-button ghost-button" id="nearby-approximate" type="button" hidden>Use approximate location</button>
-                <button class="control-button ghost-button" id="nearby-center" type="button">Use map center</button>
-              </div>
-              <p class="nearby-note">Location stays in your browser. If unavailable, we use the map center. Reload restores defaults.</p>
-              <p class="nearby-note" id="nearby-status" role="status" aria-live="polite">Website default set selected.</p>
-              <ol class="nearby-results" id="nearby-results" aria-label="Nearby observer distances"></ol>
-            </section>
-            <div class="observer-map" id="observer-map"></div>
-          </article>
 
-          <article class="panel observer-panel" id="observer-targets">
-            <div class="panel-header slim">
-              <div>
-                <p class="panel-label">Observer Set</p>
-                <h2>Observers</h2>
-              </div>
-              <div class="panel-actions">
-                <button class="ghost-button" id="observer-allowlist-clear" type="button">
-                  Default Set
-                </button>
-              </div>
+            <div class="observer-selection-head">
+              <p id="observer-selection-summary" class="selection-summary">Loading observers...</p>
             </div>
-            <p class="small-note allowlist-note" id="observer-allowlist-note">
-              Default: 0 observers.
-            </p>
-            <div class="region-filter hidden" id="region-filter"></div>
-            <div class="observer-selector" id="observer-allowlist"></div>
-            <div class="panel-divider"></div>
-            <div class="panel-header slim">
-              <div>
-                <p class="panel-label">Target</p>
-                <h2>Score Against</h2>
+            <div id="next-code-selection" class="next-code-selection" hidden>
+              <p id="next-code-note"></p>
+              <button class="control-button ghost-button" id="apply-observer-selection" type="button">Generate new code to use selection</button>
+            </div>
+            <details id="observer-customization" class="observer-customization">
+              <summary>Change observers</summary>
+              <div class="observer-customization-grid">
+                <section id="observer-targets" aria-label="Manual observer selection">
+                  <div class="panel-header slim">
+                    <h3>Region and observers</h3>
+                    <button class="ghost-button" id="observer-allowlist-clear" type="button">Default Set</button>
+                  </div>
+                  <p class="small-note allowlist-note" id="observer-allowlist-note">
+                    Default: 0 observers.
+                  </p>
+                  <div class="region-filter hidden" id="region-filter"></div>
+                  <div class="observer-selector" id="observer-allowlist"></div>
+                </section>
+                <section class="nearby-controls" aria-labelledby="nearby-heading">
+                  <h3 id="nearby-heading">Nearby observers (optional)</h3>
+                  <p class="nearby-note">Use the website default set, or choose up to 10 nearby observers for this visit.</p>
+                  <div class="nearby-actions">
+                    <label for="nearby-radius">Search radius
+                      <select id="nearby-radius">
+                        <option value="5">5 mi</option>
+                        <option value="10">10 mi</option>
+                        <option value="15">15 mi</option>
+                        <option value="20">20 mi</option>
+                        <option value="25">25 mi</option>
+                        <option value="50">50 mi</option>
+                        <option value="75">75 mi</option>
+                        <option value="100" selected>100 mi</option>
+                        <option value="150">150 mi</option>
+                        <option value="200">200 mi</option>
+                      </select>
+                    </label>
+                    <button class="control-button ghost-button" id="nearby-location" type="button">Use my location</button>
+                    <button class="control-button ghost-button" id="nearby-approximate" type="button" hidden>Use approximate location</button>
+                    <button class="control-button ghost-button" id="nearby-center" type="button">Use map center</button>
+                  </div>
+                  <p class="nearby-note">Location stays in your browser. If unavailable, we use the map center. Reload restores defaults.</p>
+                  <p class="nearby-note" id="nearby-status" role="status" aria-live="polite">Website default set selected.</p>
+                  <ol class="nearby-results" id="nearby-results" aria-label="Nearby observer distances"></ol>
+                </section>
               </div>
+            </details>
+            <div class="observer-map" id="observer-map"></div>
+            <div class="current-targets">
+              <h3 id="current-target-heading">Current code targets</h3>
               <p class="small-note" id="expected-source">Default</p>
+              <div class="observer-badges" id="expected-observers"></div>
             </div>
-            <div class="observer-badges" id="expected-observers"></div>
           </article>
 
           <article class="panel reports-panel ledger-panel" id="observer-reports">
             <div class="panel-header slim">
               <div>
-                <p class="panel-label">Observer Reports</p>
                 <h2>Who saw the message</h2>
               </div>
               <div class="panel-actions">
@@ -317,7 +296,6 @@
             <div class="timeline-block">
               <div class="panel-header slim">
                 <div>
-                  <p class="panel-label">Timeline</p>
                   <h3>When each observer saw it</h3>
                 </div>
                 <p class="small-note" id="timeline-summary">Waiting for observer reports</p>
@@ -339,7 +317,6 @@
             <div class="ledger-divider" aria-hidden="true"></div>
             <div class="panel-header slim ledger-history-head">
               <div>
-                <p class="panel-label">Recent Sessions</p>
                 <h2>Previous checks</h2>
               </div>
             </div>

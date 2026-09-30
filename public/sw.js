@@ -1,5 +1,5 @@
 // Asset revision is independent of the release version; bump for shell changes.
-const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-map-center-8';
+const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-focused-ui-9';
 const CORE_ASSETS = [
   '/',
   '/app',

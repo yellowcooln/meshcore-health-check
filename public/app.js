@@ -373,6 +373,15 @@ function selectionDiffersFromSession(session) {
   return !sameKeys(sessionTargetKeys(session), effectiveObserverKeysForCreate());
 }
 
+function hasMeasuredResult(session) {
+  return Boolean(session && (session.messageHash || session.matchedAt || Number(session.useCount) > 0
+    || Number(session.observedCount) > 0 || session.receipts?.length));
+}
+
+function resultLabel(session) {
+  return hasMeasuredResult(session) ? session.healthLabel : 'Awaiting message';
+}
+
 function sessionCanRetarget(session) {
   return Boolean(
     session
@@ -769,6 +778,7 @@ function setSessionHash(hash) {
 }
 
 function healthClass(label) {
+  if (!label || label === 'Waiting' || label === 'Awaiting message') return '';
   if (label === 'VERY HEALTHY' || label === 'GOOD') {
     return 'status-good';
   }
@@ -781,7 +791,7 @@ function healthClass(label) {
 function ringColor(label) {
   if (label === 'VERY HEALTHY' || label === 'GOOD') return 'var(--good)';
   if (label === 'FAIR') return 'var(--fair)';
-  if (!label || label === 'Waiting') return 'var(--accent-strong)';
+  if (!label || label === 'Waiting' || label === 'Awaiting message') return 'var(--accent-strong)';
   return 'var(--poor)';
 }
 
@@ -1156,6 +1166,8 @@ function renderObserverAllowlist() {
   renderRegionFilter();
   const directory = selectableObservers();
   const selected = new Set(effectiveObserverKeysForCreate());
+  const selectionSummary = document.querySelector('#observer-selection-summary');
+  if (selectionSummary) selectionSummary.textContent = `${usingDefaultObserverSet() ? 'Default' : 'Custom'}: ${selected.size} observer${selected.size === 1 ? '' : 's'}${state.selectedRegion || state.selectedRegionGroup ? ` in ${state.selectedRegion || state.selectedRegionGroup}` : ''}.`;
   ui.observerAllowlistClear.disabled = usingDefaultObserverSet();
 
   if (directory.length === 0) {
@@ -1324,18 +1336,22 @@ function mapKnownObservers(session) {
     }));
 }
 
-function clearNearbySelection() {
-  state.map.preserveNearbyViewport = false;
-  state.map.nearbyMarker?.remove();
-  state.map.nearbyMarker = null;
+function cancelNearbyRequest() {
   state.nearbyRequest += 1;
   state.nearbyCancel?.();
   state.nearbyCancel = null;
   state.nearbyApproximate = null;
   document.querySelector('#nearby-approximate').hidden = true;
+  if (ui.nearbyLocation) ui.nearbyLocation.disabled = false;
+}
+
+function clearNearbySelection() {
+  cancelNearbyRequest();
+  state.map.preserveNearbyViewport = false;
+  state.map.nearbyMarker?.remove();
+  state.map.nearbyMarker = null;
   state.nearbyMessage = '';
   state.nearbyMatches = [];
-  if (ui.nearbyLocation) ui.nearbyLocation.disabled = false;
 }
 
 function nearbyDistanceUnit() {
@@ -1408,7 +1424,7 @@ function selectNearbyMapCenter(prefix = '') {
 
 function requestNearbyLocation() {
   if (!state.snapshot || isSharePage()) return;
-  clearNearbySelection();
+  cancelNearbyRequest();
   const request = state.nearbyRequest;
   if (!window.isSecureContext || !navigator.geolocation) {
     selectNearbyMapCenter('Location unavailable (HTTPS or browser support required). Using map center. ');
@@ -1455,8 +1471,8 @@ ui.nearbyCenter?.addEventListener('click', () => {
   selectNearbyMapCenter();
 });
 ui.nearbyRadius?.addEventListener('change', () => {
-  clearNearbySelection();
-  state.nearbyMessage = 'Radius changed. Click a location source to search again; selection unchanged.';
+  cancelNearbyRequest();
+  state.nearbyMessage = `Radius ${ui.nearbyRadius.value} ${nearbyDistanceUnit()} not applied. Choose a location source to search again. Previous results and selection unchanged.`;
   renderNearbySelection();
 });
 
@@ -1711,10 +1727,10 @@ function renderHistory(sessions) {
     item.innerHTML = `
       <div>
         <div class="history-code">${escapeHtml(session.code)}</div>
-        <p>${session.observedCount}/${session.expectedCount} observers · ${escapeHtml(session.healthLabel)}</p>
+        <p>${session.observedCount}/${session.expectedCount} observers · ${escapeHtml(resultLabel(session))}</p>
       </div>
       <div>
-        <strong class="${healthClass(session.healthLabel)}">${session.healthPercent}%</strong>
+        <strong class="${healthClass(resultLabel(session))}">${hasMeasuredResult(session) ? `${session.healthPercent}%` : '--'}</strong>
         <p>${formatTime(session.createdAt)}</p>
       </div>
     `;
@@ -1919,8 +1935,8 @@ function buildDrawerContent() {
               <div class="drawer-list">
                 ${historySessions.map((entry) => drawerListItem(
                   entry.code,
-                  `${entry.observedCount}/${entry.expectedCount} observers · ${entry.healthPercent}%`,
-                  `${entry.healthLabel} · ${formatTime(entry.createdAt)}`,
+                  `${entry.observedCount}/${entry.expectedCount} observers · ${hasMeasuredResult(entry) ? `${entry.healthPercent}%` : 'Unscored'}`,
+                  `${resultLabel(entry)} · ${formatTime(entry.createdAt)}`,
                 )).join('')}
               </div>
             </section>
@@ -2016,6 +2032,14 @@ function render() {
 
   const session = currentSession();
   ui.newSessionButton.disabled = false;
+  const pendingSelection = Boolean(session && !isSharePage() && selectionDiffersFromSession(session) && !sessionCanRetarget(session));
+  const nextCodeSelection = document.querySelector('#next-code-selection');
+  if (nextCodeSelection) {
+    nextCodeSelection.hidden = !pendingSelection;
+    document.querySelector('#next-code-note').textContent = pendingSelection
+      ? `Next code: ${effectiveObserverKeysForCreate().length} observers selected for the map. Current code keeps its ${session.expectedCount} targets.`
+      : '';
+  }
   ui.copySessionCodeButton.disabled = !session;
   ui.shareSessionButton.disabled = !session?.shareUrl;
   applySiteBranding(snapshot);
@@ -2042,7 +2066,7 @@ function render() {
     setSessionHash('');
     ui.healthLabel.textContent = 'Waiting';
     ui.healthLabel.className = '';
-    ui.healthPercent.innerHTML = '<span class="score-num">0</span><span class="score-unit">%</span>';
+    ui.healthPercent.textContent = '--';
     ui.observedCount.textContent = '0 / 0';
     ui.repeaterCount.textContent = '0';
     if (ui.longestPacketDistance) {
@@ -2075,9 +2099,11 @@ function render() {
   ui.sessionShareNote.textContent = `Share link available until ${formatDateTime(session.resultExpiresAt)}.`;
   ui.sessionStatus.textContent = session.status.toUpperCase();
   setSessionHash(session.messageHash);
-  ui.healthLabel.textContent = session.healthLabel;
-  ui.healthLabel.className = healthClass(session.healthLabel);
-  ui.healthPercent.innerHTML = `<span class="score-num">${session.healthPercent}</span><span class="score-unit">%</span>`;
+  ui.healthLabel.textContent = resultLabel(session);
+  ui.healthLabel.className = healthClass(resultLabel(session));
+  ui.healthPercent.innerHTML = hasMeasuredResult(session)
+    ? `<span class="score-num">${session.healthPercent}</span><span class="score-unit">%</span>`
+    : '<span class="score-num">--</span>';
   ui.observedCount.textContent = `${session.observedCount} / ${session.expectedCount}`;
   ui.repeaterCount.textContent = String(session.repeaterCount || 0);
   if (ui.longestPacketDistance) {
@@ -2096,12 +2122,12 @@ function render() {
   ui.channelName.textContent = session.channelName ? `#${session.channelName}` : channelLabel;
   ui.messagePreview.textContent = session.messageBody || `Waiting for your ${channelLabel} message.`;
   ui.messagePreview.title = session.messageBody || '';
-  const showTargetPreview = selectionDiffersFromSession(session);
+  const showTargetPreview = !isSharePage() && sessionCanRetarget(session) && selectionDiffersFromSession(session);
   ui.expectedSource.textContent = showTargetPreview
     ? targetPreviewLabel()
     : sessionObserverSourceLabel(session);
 
-  updateRing(session.healthPercent, session.healthLabel);
+  updateRing(hasMeasuredResult(session) ? session.healthPercent : 0, resultLabel(session));
   renderObserverAllowlist();
   renderExpectedObservers(showTargetPreview ? targetPreviewSession() : session);
   renderObserverMap(session);
@@ -2256,6 +2282,10 @@ async function bootstrap() {
 }
 
 ui.newSessionButton.addEventListener('click', () => {
+  createSession();
+});
+
+document.querySelector('#apply-observer-selection')?.addEventListener('click', () => {
   createSession();
 });
 
