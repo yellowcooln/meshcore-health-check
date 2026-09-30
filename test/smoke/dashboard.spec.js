@@ -71,6 +71,7 @@ test('score guidance follows available regions and selected group or region', as
     regionHierarchy: [{ group: 'North', regions: [{ name: 'Alpha' }] }, { group: 'South', regions: [{ name: 'Beta' }] }],
   } });
   const note = page.locator('.score-selection-note');
+  await expect(note).toContainText('You can also choose a region under Change observers to narrow the default set.');
   await expect(note).toContainText('across all available regions');
   await page.getByRole('button', { name: 'North', exact: true }).click();
   await expect(note).toContainText('in the selected region group (North)');

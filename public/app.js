@@ -1377,7 +1377,8 @@ function renderScoreSelectionNote() {
       ? ` in the selected region group (${escapeHtml(state.selectedRegionGroup)})`
       : ' across all available regions';
   const action = browserLocationEnabled() ? 'Use my location' : 'Use map center';
-  note.innerHTML = `Your score reflects the selected observers. Automatic defaults favor the most active MQTT observers${scope} - not necessarily the best fit for your exact location. Open <strong>Change observers</strong> and choose <strong>${action}</strong> under Nearby observers to find a more relevant set.`;
+  const regionalAction = hasRegions ? ' You can also choose a region under <strong>Change observers</strong> to narrow the default set.' : '';
+  note.innerHTML = `Your score reflects the selected observers. Automatic defaults favor the most active MQTT observers${scope} - not necessarily the best fit for your exact location. Open <strong>Change observers</strong> and choose <strong>${action}</strong> under Nearby observers to find a more relevant set.${regionalAction}`;
 }
 
 function renderNearbySelection() {
