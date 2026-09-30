@@ -99,79 +99,6 @@ test('expanded observer controls keep filters spaced and stack at tablet widths'
   }
 });
 
-test('field utility prioritizes the transmit task and compact observer rows', async ({ page }) => {
-  await openNearbyFixture(page);
-  for (const width of [1440, 978, 390]) {
-    await page.setViewportSize({ width, height: 1000 });
-    await expect(page.locator('.score-ring__svg')).toHaveCount(0);
-    await expect(page.locator('#reception-progress')).toBeVisible();
-    await expect(page.locator('#expected-observers .observer-pill').first()).toContainText('Pending');
-    const layout = await page.evaluate(() => {
-      const rect = (s) => document.querySelector(s).getBoundingClientRect();
-      return {
-        headerHeight: rect('.hero-stage').height,
-        codeAboveFold: rect('#session-code').top + scrollY < 450,
-        observerRowHeight: rect('#expected-observers .observer-pill').height,
-        background: getComputedStyle(document.querySelector('#command-center')).backgroundImage,
-        overflow: document.documentElement.scrollWidth > innerWidth,
-      };
-    });
-    expect(layout.headerHeight).toBeLessThan(160);
-    expect(layout.codeAboveFold).toBe(true);
-    expect(layout.observerRowHeight).toBeLessThanOrEqual(76);
-    expect(layout.background).toBe('none');
-    expect(layout.overflow).toBe(false);
-  }
-});
-
-test('reception meter distinguishes pending, measured zero and partial reception', async ({ page }) => {
-  const rows = [
-    mapObserver('1'.repeat(64), 'First target', 42, -71, null),
-    mapObserver('2'.repeat(64), 'Second target', 43, -72, null),
-  ];
-  await openNearbyFixture(page, { rows });
-  const meter = page.getByRole('progressbar', { name: 'Selected observers reached' });
-  await expect(meter).toHaveAttribute('value', '0');
-  await expect(meter).toHaveAttribute('max', '2');
-  await expect(meter).toHaveAttribute('aria-valuetext', /not yet measured/);
-  await expect(page.locator('#expected-observers .pending')).toHaveCount(2);
-  await expect(page.locator('.observer-map-icon.pending')).toHaveCount(2);
-  await expect(page.locator('.observer-map-icon.missed')).toHaveCount(0);
-  await expect(page.locator('#receipts-empty')).toBeHidden();
-  await expect(page.locator('#receipt-timeline-empty')).toBeVisible();
-  await expect(page.locator('#transmit-channel')).toHaveText('#health-check');
-
-  let measured = { ...mapSession(rows), useCount: 1, allowlistEnabled: true };
-  await page.route('**/api/sessions', (route) => route.fulfill({ json: measured }));
-  await page.route('**/api/sessions/map-session', (route) => route.fulfill({ json: measured }));
-  await page.locator('#new-session-button').click();
-  await expect(meter).toHaveAttribute('data-measured', 'true');
-  await expect(meter).toHaveAttribute('aria-valuetext', '0 of 2 selected observers reached');
-  await expect(page.locator('#health-percent')).toHaveText('0%');
-  await expect(page.locator('#expected-observers .waiting')).toHaveCount(2);
-  await expect(page.locator('.observer-map-icon.missed')).toHaveCount(2);
-  await expect(page.locator('#expected-source')).toHaveText('Saved targets');
-
-  measured = {
-    ...measured, observedCount: 1, healthPercent: 50, healthLabel: 'FAIR',
-    expectedObservers: measured.expectedObservers.map((observer, index) => ({ ...observer, seen: index === 0 })),
-    receipts: [{ observerKey: rows[0].key, observerLabel: rows[0].label,
-      observerHash: rows[0].hash, observerShortKey: rows[0].shortKey,
-      firstSeenAt: Date.now(), count: 1, path: [] }],
-  };
-  await page.locator('#new-session-button').click();
-  await expect(meter).toHaveAttribute('value', '1');
-  await expect(meter).toHaveAttribute('max', '2');
-  await expect(meter).toHaveAttribute('aria-valuetext', '1 of 2 selected observers reached');
-  await expect(page.locator('#observed-count')).toHaveText('1 / 2');
-  await expect(page.locator('#health-percent')).toHaveText('50%');
-  await expect(page.locator('#expected-observers .seen')).toHaveCount(1);
-  await expect(page.locator('#expected-observers .waiting')).toHaveCount(1);
-  await expect(page.locator('.observer-map-icon.seen')).toHaveCount(1);
-  await expect(page.locator('.observer-map-icon.missed')).toHaveCount(1);
-  await expect(page.locator('#receipt-timeline-empty')).toBeHidden();
-});
-
 test('score guidance on an unconfigured global instance makes no region claim', async ({ page }) => {
   await openNearbyFixture(page);
   await expect(page.locator('.score-selection-note')).not.toContainText(/region|selected area/i);
@@ -208,7 +135,7 @@ for (const enabled of [true, false]) {
 
 test('score explains default observer selection and nearby alternatives', async ({ page }) => {
   await page.goto('/app');
-  const note = page.locator('#command-center .score-selection-note');
+  const note = page.locator('.health-pocket .score-selection-note');
   await expect(note).toBeVisible();
   await expect(note).toContainText('most active MQTT observers');
   await expect(note).toContainText('not necessarily the best fit for your exact location');
@@ -797,7 +724,7 @@ test('dashboard loads and creates a session code', async ({ page }) => {
   await expect(page.locator('#session-code')).toContainText('MHC-', { timeout: 10000 });
   await expect(page.getByRole('button', { name: 'Copy' })).toBeVisible();
   await expect(page.getByText('Where the observers are')).toBeVisible();
-  await expect(page.locator('#map-observer-note')).toContainText('Awaiting message; reception is not yet measured.');
+  await expect(page.locator('#map-observer-note')).toContainText('mapped observers reached.');
   await expect(page.locator('#observer-map')).toBeVisible();
   await expect(page.getByText('When each observer saw it')).toBeVisible();
   await expect(page.getByText('Timeline appears after the first observer report.')).toBeVisible();
@@ -839,7 +766,7 @@ test('changing the observer selection updates the target and regenerates the unu
 
   await expect(page.locator('#expected-observers .observer-pill')).toHaveCount(1);
   await expect(sessionCode).not.toHaveText(initialCode || '', { timeout: 10000 });
-  await expect(page.locator('#expected-source')).toContainText('Saved targets');
+  await expect(page.locator('#expected-source')).toContainText('Custom set');
 });
 
 test('coverage map only plots observers targeted by the selected region', async ({ page }) => {

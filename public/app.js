@@ -170,8 +170,7 @@ function applyUiTheme() {
   }
   const metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (metaThemeColor) {
-    const colors = isSharePage() ? ['#07111d', '#e9f2ff'] : ['#191c20', '#f6f5f1'];
-    metaThemeColor.setAttribute('content', colors[activeTheme === 'dark' ? 0 : 1]);
+    metaThemeColor.setAttribute('content', activeTheme === 'dark' ? '#07111d' : '#e9f2ff');
   }
 }
 
@@ -383,21 +382,6 @@ function resultLabel(session) {
   return hasMeasuredResult(session) ? session.healthLabel : 'Awaiting message';
 }
 
-function renderReceptionProgress(session) {
-  const meter = document.querySelector('#reception-progress');
-  if (!meter) return; // Shared results retain their existing score presentation.
-  const measured = hasMeasuredResult(session);
-  const expected = Math.max(0, Number(session?.expectedCount) || 0);
-  const observed = Math.max(0, Number(session?.observedCount) || 0);
-  meter.max = Math.max(1, expected);
-  meter.value = measured ? Math.min(observed, expected) : 0;
-  meter.dataset.measured = String(measured);
-  meter.textContent = `${observed} / ${expected}`;
-  meter.setAttribute('aria-valuetext', measured
-    ? `${observed} of ${expected} selected observers reached`
-    : `Awaiting message; reception not yet measured for ${expected} selected observers`);
-}
-
 function sessionCanRetarget(session) {
   return Boolean(
     session
@@ -431,8 +415,7 @@ function sessionObserverSourceLabel(session) {
     return defaultObserverTargetSummary();
   }
   if (session.allowlistEnabled) {
-    // Explicit keys can be ranked defaults as well as a manual selection.
-    return isSharePage() ? 'Custom set' : 'Saved targets';
+    return 'Custom set';
   }
   if (session.expectedObserverSource === 'configured') {
     return 'Default set';
@@ -981,19 +964,18 @@ function renderExpectedObservers(session) {
     : [];
   if (expected.length === 0) {
     ui.expectedObservers.innerHTML =
-      `<div class="observer-pill ${isSharePage() ? 'waiting' : 'pending'}"><span>Waiting for first receipt</span><span class="status">--</span></div>`;
+      '<div class="observer-pill waiting"><span>Waiting for first receipt</span><span class="status">--</span></div>';
     return;
   }
   for (const observer of expected) {
     const item = document.createElement('div');
-    const pending = !isSharePage() && !hasMeasuredResult(session);
-    item.className = `observer-pill ${observer.seen ? 'seen' : pending ? 'pending' : 'waiting'}`;
+    item.className = `observer-pill ${observer.seen ? 'seen' : 'waiting'}`;
     item.innerHTML = `
       <div class="observer-main">
         <strong class="observer-label">${escapeHtml(observer.label)}</strong>
         <div class="small-note observer-hash">${escapeHtml(observer.hash || '')}</div>
       </div>
-      <span class="status">${observer.seen ? 'Seen' : pending ? 'Pending' : 'Not Seen'}</span>
+      <span class="status">${observer.seen ? 'Seen' : 'Not Seen'}</span>
     `;
     ui.expectedObservers.appendChild(item);
   }
@@ -1206,9 +1188,10 @@ function renderObserverAllowlist() {
     label: observerDisplayLabel(observer),
     hash: observer.hash || '--',
     detail: [
-      observer.isRetained === false ? 'not recently heard' : '',
-      observer.hasLocation ? '' : 'no map',
-    ].filter(Boolean).join(' · '),
+      observer.isDefaultTarget ? 'default target' : 'available',
+      observer.isRetained === false ? 'not recently heard' : 'known observer',
+      observer.hasLocation ? 'mapped' : 'no map',
+    ].join(' · '),
     checked: selected.has(observer.key),
     stale: observer.isRetained === false,
   }));
@@ -1225,12 +1208,12 @@ function renderObserverAllowlist() {
   for (const row of rows) {
     const item = document.createElement('label');
     item.className = `observer-option ${row.stale ? 'stale' : 'ready'} ${row.checked ? 'selected' : ''}`;
-    // Observer labels, hashes and detail text are escaped before HTML insertion.
     item.innerHTML = `
       <input type="checkbox" value="${row.key}" ${row.checked ? 'checked' : ''}>
       <span class="observer-option-copy">
         <strong>${escapeHtml(row.label)}</strong>
-        <span><span class="observer-option-id">${escapeHtml(row.hash)}</span>${row.detail ? ` · ${escapeHtml(row.detail)}` : ''}</span>
+        <span>${escapeHtml(row.hash)}</span>
+        <span>${escapeHtml(row.detail)}</span>
       </span>
     `;
     const checkbox = item.querySelector('input');
@@ -1557,10 +1540,10 @@ function currentTileLayer() {
   });
 }
 
-function markerIcon(observer, pending = false) {
+function markerIcon(observer) {
   return window.L.divIcon({
     className: 'observer-map-icon-shell',
-    html: `<span class="observer-map-icon ${observer.seen ? 'seen' : pending ? 'pending' : 'missed'}"></span>`,
+    html: `<span class="observer-map-icon ${observer.seen ? 'seen' : 'missed'}"></span>`,
     iconSize: [18, 18],
     iconAnchor: [9, 9],
   });
@@ -1569,12 +1552,9 @@ function markerIcon(observer, pending = false) {
 function renderObserverMap(session) {
   const locatedObservers = mapKnownObservers(session);
   const mapInstance = ensureObserverMap();
-  const pending = !isSharePage() && !hasMeasuredResult(session);
 
   ui.mapObserverNote.textContent = locatedObservers.length > 0
-    ? pending
-      ? `${locatedObservers.length} mapped observers. Awaiting message; reception is not yet measured.`
-      : `${locatedObservers.filter((observer) => observer.seen).length}/${locatedObservers.length} mapped observers reached.`
+    ? `${locatedObservers.filter((observer) => observer.seen).length}/${locatedObservers.length} mapped observers reached.`
     : 'No observer coordinates yet. The map stays live and will populate as coordinates arrive.';
   ui.mapEmpty.classList.toggle('hidden', locatedObservers.length > 0);
 
@@ -1608,15 +1588,15 @@ function renderObserverMap(session) {
     bounds.push(latLng);
     let marker = state.map.markers.get(observer.key);
     if (!marker) {
-      marker = window.L.marker(latLng, { icon: markerIcon(observer, pending) }).addTo(mapInstance);
+      marker = window.L.marker(latLng, { icon: markerIcon(observer) }).addTo(mapInstance);
       state.map.markers.set(observer.key, marker);
     } else {
       marker.setLatLng(latLng);
-      marker.setIcon(markerIcon(observer, pending));
+      marker.setIcon(markerIcon(observer));
     }
     marker.bindPopup(`
       <strong>${escapeHtml(observer.label)}</strong><br>
-      ${observer.seen ? 'Seen by this check' : pending ? 'Pending - awaiting message' : 'Not seen by this check'}<br>
+      ${observer.seen ? 'Seen by this check' : 'Not seen by this check'}<br>
       ${escapeHtml(observer.hash || '--')} · ${escapeHtml(observer.shortKey)}
     `);
   }
@@ -1639,8 +1619,7 @@ function renderObserverMap(session) {
 function renderReceipts(session) {
   const receipts = Array.isArray(session?.receipts) ? session.receipts : [];
   ui.receipts.innerHTML = '';
-  // On the app, the timeline owns the single empty-state explanation.
-  ui.receiptsEmpty.classList.toggle('hidden', !isSharePage() || receipts.length > 0);
+  ui.receiptsEmpty.classList.toggle('hidden', receipts.length > 0);
 
   for (const receipt of receipts) {
     const card = document.createElement('article');
@@ -2085,9 +2064,6 @@ function render() {
 
   const session = currentSession();
   ui.newSessionButton.disabled = false;
-  renderReceptionProgress(session);
-  const transmitChannel = document.querySelector('#transmit-channel');
-  if (transmitChannel) transmitChannel.textContent = session?.channelName ? `#${session.channelName}` : channelLabel;
   const pendingSelection = Boolean(session && !isSharePage() && selectionDiffersFromSession(session) && !sessionCanRetarget(session));
   const nextCodeSelection = document.querySelector('#next-code-selection');
   if (nextCodeSelection) {

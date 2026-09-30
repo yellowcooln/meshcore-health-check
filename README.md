@@ -31,31 +31,14 @@ Other community Health Checks:
 
 ## Dashboard workflow
 
-The dashboard is a compact field utility: the active code and destination channel
-come first, with **Copy code** as the primary action and **New Code** / **Share**
-alongside it. Send the code yourself from MeshCore; this app does not transmit.
-
-**Observers reached** shows the received/target count and a horizontal reception
-meter, with the percentage score secondary. Checks show **Awaiting message** and
-an unscored `--` until a matching message is observed. Pending target rows and map
-markers are neutral, not failed results; after measurement, **Not Seen** indicates
-a target that has not reported the message. The meter measures observer reception,
-not elapsed time or progress toward a guaranteed result.
-
+Copy the active code and send it to the displayed MeshCore channel. Checks show
+**Awaiting message** without a score until a matching message is observed.
 **Details** contains secondary diagnostics, including the message hash and broker.
-**Check history** includes the current check and earlier checks in this browser
-session. Dark and light themes, configured branding and the install control
-remain available in the compact header. Shared-result pages retain their existing
-read-only presentation.
 
 Open **Change observers** above the map for regional, manual or nearby selection.
 The score describes the current code's saved targets; if a used code has a different
 selection, the dashboard shows the next-code targets separately and offers
 **Generate new code**. The map follows your current selection, not historical targets.
-Compact target and checkbox rows keep the observer lists scannable. **Saved targets**
-means the code stores explicit observer keys; it does not claim those keys were
-chosen manually rather than by an activity-ranked default. The guidance below the
-result remains visible without opening Details or Change observers.
 
 ## Nearby Observer Selection
 
