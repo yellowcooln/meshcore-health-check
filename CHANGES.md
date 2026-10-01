@@ -2,6 +2,14 @@
 
 ## v1.4.0
 
+- redesigned the app as a layered radio console with navy/cyan dark materials,
+  pale blue/white light materials, an amber active-code display, compact score
+  instrument and map-led desktop workspace with a receipt/history side rail
+- kept full score-selection guidance visible beside the result, with responsive
+  stacking and app-only CSS; shared results and verification styling are unchanged
+- added the radio-console stylesheet to the PWA shell and revised its asset cache
+  independently of the release version; no configuration or dependencies changed
+
 - added `BROWSER_LOCATION_ENABLED=true` to retain opt-in browser location by
   default; disabling it hides location/approximate controls and denies browser
   geolocation while preserving map-center, radius and manual observer choices

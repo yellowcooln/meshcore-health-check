@@ -31,6 +31,13 @@ Other community Health Checks:
 
 ## Dashboard workflow
 
+The app uses a radio-console layout: an amber code display and copy controls
+beside a compact coverage instrument, then a wide map with the receipt/history
+rail alongside it on large screens. Tablet and phone layouts stack these work
+areas. Dark mode uses layered navy and cyan; light mode uses pale blue and white.
+The complete default/region/location explanation stays visible next to the result.
+This app-only styling does not change shared results, verification or privacy pages.
+
 Copy the active code and send it to the displayed MeshCore channel. Checks show
 **Awaiting message** without a score until a matching message is observed.
 **Details** contains secondary diagnostics, including the message hash and broker.

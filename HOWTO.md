@@ -10,6 +10,21 @@ that code.
 It does not transmit anything. It only watches MQTT, matches messages, and
 summarizes observer coverage.
 
+## Using the radio console
+
+Copy the amber active code, send it on the channel in the instructions, then
+watch the compact coverage instrument and observer receipts. The map is the main
+selection surface; **Change observers** opens its region, manual and nearby
+controls. **Details** below the command strip opens secondary diagnostics. The
+score explanation is always visible and still follows the configured regional
+and browser-location options. Light/dark mode remains in the header.
+
+The app loads `public/radio-console.css` after the shared stylesheet. The PWA
+shell cache revision is `radio-console-14`, independent of the v1.4.0 release.
+Deploy the stylesheet, app HTML and service worker together; shared-result,
+verification and privacy pages do not load the app theme. No new configuration
+or external font dependency is needed.
+
 ## Select Nearby Observers
 
 `BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as
