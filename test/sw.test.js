@@ -14,7 +14,5 @@ test('PWA update uses a distinct cache and bypasses stale HTTP assets during ins
   handlers.install({ waitUntil: (promise) => { installed = promise; } });
   await installed;
   assert.notEqual(name, 'mesh-health-check-pwa-v1.4.0');
-  assert.equal(name, 'mesh-health-check-pwa-v1.4.0-radio-console-14');
-  assert.ok(assets.some((request) => request.url === '/radio-console.css'));
   assert.ok(assets.every((request) => request.cache === 'reload'));
 });

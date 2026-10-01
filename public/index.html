@@ -23,9 +23,8 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <link rel="stylesheet" href="/vendor/leaflet/leaflet.css">
     <link rel="stylesheet" href="/styles.css">
-    <link rel="stylesheet" href="/radio-console.css">
   </head>
-  <body class="noc-body radio-console" data-page-mode="app" data-ui-theme="dark">
+  <body class="noc-body" data-page-mode="app" data-ui-theme="dark">
     <div class="screen-glow" aria-hidden="true"></div>
     <main class="noc-shell">
       <section class="workspace">
@@ -91,6 +90,12 @@
               </div>
 
               <section class="health-pocket">
+                <div class="health-pocket__head">
+                  <div>
+                    <h2 id="health-label">Waiting</h2>
+                  </div>
+                </div>
+
                 <div class="health-pocket__content">
                   <div class="score-ring">
                     <svg class="score-ring__svg" viewBox="0 0 120 120" aria-hidden="true">
@@ -101,9 +106,6 @@
                   </div>
 
                   <div class="score-grid health-pocket__stats">
-                    <div class="health-pocket__head">
-                      <h2 id="health-label">Waiting</h2>
-                    </div>
                     <div class="metric-card">
                       <span class="metric-label">Observers Reached</span>
                       <strong id="observed-count">0 / 0</strong>

@@ -1,12 +1,11 @@
 // Asset revision is independent of the release version; bump for shell changes.
-const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-radio-console-14';
+const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-observer-layout-12';
 const CORE_ASSETS = [
   '/',
   '/app',
   '/privacy',
   '/manifest.webmanifest',
   '/styles.css',
-  '/radio-console.css',
   '/app.js',
   '/nearest-observers.js',
   '/location-refinement.js',
