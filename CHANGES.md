@@ -2,6 +2,8 @@
 
 ## v1.4.0
 
+- updated dotenv to 18.0.5, ws to 8.22.0 and transitive ip-address to 10.7.3
+  for environment parsing, WebSocket fixes and IP address validation fixes
 - added `BROWSER_LOCATION_ENABLED=true` to retain opt-in browser location by
   default; disabling it hides location/approximate controls and denies browser
   geolocation while preserving map-center, radius and manual observer choices
