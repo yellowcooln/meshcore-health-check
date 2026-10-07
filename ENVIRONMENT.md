@@ -80,7 +80,7 @@ The backend keeps packet handling scoped to the configured test channel.
 
 | Variable | Default | Purpose |
 | --- | --- | --- |
-| `KNOWN_OBSERVERS` | blank | Comma-separated full pubkeys for legacy fixed defaults when `INITIAL_REGION` is blank. Initial-region and selected-region defaults use activity ranking instead. |
+| `KNOWN_OBSERVERS` | blank | Comma-separated full pubkeys for legacy fixed defaults when `INITIAL_REGION` is blank. Default Set restores these fixed keys and clears temporary region filters when fixed defaults are active. Initial-region defaults use activity ranking instead. |
 | `OBSERVER_TOP_WINDOW_DAYS` | `7` | Lookback window for dynamic top-observer ranking. |
 | `OBSERVER_TOP_COUNT` | `10` | Maximum activity-ranked default observers, including initial-region and selected-region Default Set. Nearby location selection has a separate fixed maximum of 10. |
 | `OBSERVER_HASH_DISPLAY_BYTES` | `1` | UI hash prefix width: `1` = `AB`, `2` = `ABCD`, `3` = `ABCDEF`. |

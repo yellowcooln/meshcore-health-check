@@ -2,6 +2,9 @@
 
 ## v1.4.0
 
+- made Default Set restore configured fixed observer keys and clear temporary
+  region filters when fixed defaults are active; activity-ranked defaults retain
+  their selected-region behavior
 - updated dotenv to 18.0.5, ws to 8.22.0 and transitive ip-address to 10.7.3
   for environment parsing, WebSocket fixes and IP address validation fixes
 - added `BROWSER_LOCATION_ENABLED=true` to retain opt-in browser location by

@@ -345,6 +345,31 @@ test('All selects the allowed scope, Default Set ranks that scope, reload restor
   await expect.poll(async () => (await mappedState(page)).markers.map((m) => /MA observer/.test(m.popup))).toEqual([true]);
 });
 
+test('Default Set restores configured eastern observers after regional and All selections', async ({ page }) => {
+  const targets = [];
+  page.on('request', (request) => {
+    if (request.url().endsWith('/api/sessions') && request.method() === 'POST') targets.push(request.postDataJSON().expectedObserverKeys);
+  });
+  await captureMap(page);
+  const rows = [
+    mapObserver('A'.repeat(64), 'Eastern configured observer', 42.3, -71.1, 'Massachusetts'),
+    mapObserver('B'.repeat(64), 'Western ranked observer', 42.3, -72.6, 'Massachusetts'),
+    mapObserver('C'.repeat(64), 'CT ranked observer', 41.6, -72.7, 'Connecticut'),
+  ];
+  await openNearbyFixture(page, { rows, bootstrapOverrides: {
+    defaultRegions: [], defaultObserverSource: 'configured', defaultObserverKeys: [rows[0].key], defaultObservers: [rows[0]],
+    topObserverKeys: [rows[1].key], topObserverKeysByRegion: { Massachusetts: [rows[1].key], Connecticut: [rows[2].key] },
+  } });
+  for (const selection of [/^Massachusetts/, /^All(?: regions)?\s/]) {
+    await page.getByRole('button', { name: selection }).click();
+    await expect.poll(async () => (await mappedState(page)).markers.length).toBeGreaterThan(1);
+    await page.getByRole('button', { name: 'Default Set', exact: true }).click();
+    await expect.poll(async () => (await mappedState(page)).markers.map((m) => m.popup.includes(rows[0].name))).toEqual([true]);
+    await expect.poll(() => targets.at(-1)).toEqual([rows[0].key]);
+    expect(await page.locator('#observer-allowlist input:checked').evaluateAll((els) => els.map((el) => el.value))).toEqual([rows[0].key]);
+  }
+});
+
 async function captureMap(page) {
   await page.route('**/vendor/leaflet/leaflet.js', async (route) => {
     const response = await route.fetch();

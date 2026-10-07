@@ -1,5 +1,5 @@
 // Asset revision is independent of the release version; bump for shell changes.
-const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-observer-layout-12';
+const CACHE_NAME = 'mesh-health-check-pwa-v1.4.0-configured-defaults-13';
 const CORE_ASSETS = [
   '/',
   '/app',

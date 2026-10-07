@@ -240,10 +240,12 @@ With `INITIAL_REGION` set, initial defaults rank recent activity inside the
 configured region before applying `OBSERVER_TOP_COUNT` (10); if there is no ranked
 history, active observers in that area are used. This takes precedence over fixed
 `KNOWN_OBSERVERS`; fixed keys remain the legacy default only with no initial region.
-The dashboard's **Default Set** uses recent top observers within the currently
-selected region (active-window fallback when no history), not a fixed pubkey list;
-it preserves that region. Reload restores the configured initial region. Region
-buttons may select all observers there; Default Set narrows them to the top set.
+With fixed `KNOWN_OBSERVERS` defaults and no `INITIAL_REGION`, **Default Set**
+clears temporary region/group filters and restores that configured pubkey list.
+With activity-ranked defaults, it uses recent top observers within the currently
+selected region (active-window fallback when no history) and preserves that region.
+Reload restores the site's initial defaults. Region buttons may select all
+observers there; Default Set narrows them to the applicable default set.
 No precise device coordinates are stored or sent to the server.
 Location requests a fresh high-accuracy estimate and displays browser-reported
 accuracy in the configured distance unit; GPS accuracy is not guaranteed. The public `/privacy` page

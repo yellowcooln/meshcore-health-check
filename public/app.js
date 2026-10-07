@@ -2335,6 +2335,15 @@ ui.shareSessionButton.addEventListener('click', () => {
 
 ui.observerAllowlistClear.addEventListener('click', () => {
   clearNearbySelection();
+  if (state.snapshot?.defaultObserverSource === 'configured') {
+    state.selectedRegionGroup = null;
+    state.selectedRegion = null;
+    state.regionSelectionApplied = false;
+    state.selectedObserverKeys = [];
+    render();
+    scheduleSessionRetarget();
+    return;
+  }
   if (usingDefaultObserverSet()) {
     return;
   }
