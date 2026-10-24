@@ -678,7 +678,7 @@ function mapBootstrap(observerDirectory, cartoBasemapKey = 'test-carto-key') {
       eyebrow: 'MeshCore Observer Coverage',
       headline: 'Check your mesh reach.',
       description: 'Generate a test code, send it to the configured channel, and watch observer coverage build in real time.',
-      version: '1.4.0',
+      version: '1.4.1',
       repoUrl: 'https://github.com/yellowcooln/meshcore-health-check',
       changesUrl: 'https://github.com/yellowcooln/meshcore-health-check/blob/main/CHANGES.md',
     },
@@ -973,7 +973,10 @@ test('keyless dark map renders with real MapLibre and releases canvases on theme
     return loaded;
   })).toBe(true);
   expect(workers.length).toBeGreaterThan(0);
-  expect(workers.every((url) => new URL(url).pathname === '/vendor/maplibre/maplibre-gl-worker.mjs')).toBe(true);
+  expect(workers.every((url) => {
+    const worker = new URL(url);
+    return worker.pathname === '/vendor/maplibre/maplibre-gl-worker.mjs' && worker.search === '?v=6.15.0';
+  })).toBe(true);
   await expect(page.locator('.leaflet-control-attribution')).toContainText('OpenFreeMap');
   await expect(page.locator('.leaflet-control-attribution')).toContainText('OpenMapTiles');
   // Keep provider attribution outside the DOM even with the patched renderer.

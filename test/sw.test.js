@@ -6,7 +6,10 @@ import fs from 'node:fs';
 function worker({ response, failStorage = false, failRead = false, failOpen = false } = {}) {
   const handlers = {};
   const entries = new Map();
-  const key = (request) => typeof request === 'string' ? request : new URL(request.url).pathname;
+  const key = (request) => {
+    const url = new URL(typeof request === 'string' ? request : request.url, 'https://example.test');
+    return url.pathname + url.search;
+  };
   const cache = {
     match: async (request) => {
       if (failRead) throw new Error('storage unavailable');
@@ -142,8 +145,13 @@ test('PWA update uses a distinct cache and bypasses stale HTTP assets during ins
   });
   handlers.install({ waitUntil: (promise) => { installed = promise; } });
   await installed;
+  const manifest = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url)));
+  const workerUrl = `/vendor/maplibre/maplibre-gl-worker.mjs?v=${manifest.dependencies['maplibre-gl']}`;
+  assert.ok(assets.some((request) => request.url === workerUrl), 'precache the exact versioned module worker URL');
+  assert.ok(!assets.some((request) => /maplibre-gl-shared\.mjs/.test(request.url)), 'deprecated empty shared module is not a renderer dependency');
   assert.notEqual(name, 'mesh-health-check-pwa-v1.4.0');
   assert.notEqual(name, 'mesh-health-check-pwa-v1.4.0-code-length-19');
-  assert.equal(name, 'mesh-health-check-pwa-v1.4.0-code-prefix-24');
+  assert.notEqual(name, 'mesh-health-check-pwa-v1.4.0-code-prefix-24');
+  assert.equal(name, 'mesh-health-check-pwa-v1.4.1-maplibre-25');
   assert.ok(assets.every((request) => request.cache === 'reload'));
 });

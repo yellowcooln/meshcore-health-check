@@ -258,8 +258,9 @@ cp .env.example .env
 See [ENVIRONMENT.md](ENVIRONMENT.md) for the full variable reference.
 
 The dark coverage map uses OpenFreeMap by default; no API key is needed. MapLibre
-6.4.1 and its Leaflet bridge are served locally as ordered modules, including
-the same-origin module worker. The browser fetches the style,
+6.15.0 and its Leaflet bridge are served locally as ordered modules, including
+the self-contained same-origin module worker. The PWA precaches its exact
+versioned URL for offline worker loading. The browser fetches the style,
 tiles, sprites and fonts from `tiles.openfreemap.org`. Light mode uses
 OpenStreetMap raster tiles. Unsupported WebGL2 or vector-provider errors fall back
 to OpenStreetMap without disabling markers, popups or nearby selection. The
@@ -352,6 +353,20 @@ Image tags:
 - `yellowcooln/meshcore-health-check:dev` is the Docker image tag built from
   `dev`.
 - Release tags and short-SHA tags are also published by the Docker workflow.
+
+## Upgrading to v1.4.1
+
+This dependency/security patch adds no environment settings or data migration.
+Preserve `.env`, Compose overrides, logo mounts and persistent data. From the
+selected source revision, run `docker compose build --pull mesh-health-check`,
+then `docker compose up -d --no-build --pull never --force-recreate mesh-health-check`.
+For image-only installs, select an actually published 1.4.1 tag, pull it, then
+use the same recreate command; a local commit does not publish an image.
+Verify `/api/bootstrap` reports `site.version: 1.4.1`. Reload installed apps
+after the service worker activates so the new local renderer and exact versioned
+worker are cached together. External tiles/styles still require network access.
+The [v1.4.0 checklist](#upgrading-to-v140) below also applies when upgrading
+from an older release, including reconciling frontend overrides.
 
 ## Upgrading to v1.4.0
 

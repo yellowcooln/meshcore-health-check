@@ -171,7 +171,7 @@ Dark Matter raster tiles instead of the default OpenFreeMap dark map.
 
 For full setup steps, read [HOWTO.md](HOWTO.md). For every runtime variable,
 read [ENVIRONMENT.md](ENVIRONMENT.md). Existing deployments should follow the
-[v1.4.0 upgrade checklist](HOWTO.md#upgrading-to-v140) to preserve configuration
+[v1.4.1 upgrade checklist](HOWTO.md#upgrading-to-v141) to preserve configuration
 and state, reconcile frontend overrides, and recreate the service after env edits.
 
 ## Project Layout
@@ -208,7 +208,7 @@ and state, reconcile frontend overrides, and recreate the service after env edit
 - `CORESCOPE_URL` changes the matched message-hash link to CoreScope
   `#/packets/<hash>` routes.
 - Dark maps default to keyless OpenFreeMap via locally served MapLibre GL JS
-  6.4.1 and Leaflet bridge 0.1.4. Style, tiles, sprites and fonts come from
+  6.15.0 and Leaflet bridge 0.1.4. Style, tiles, sprites and fonts come from
   `tiles.openfreemap.org`; full provider/data attribution stays visible.
   `CARTO_BASEMAP_KEY` optionally selects CARTO Dark Matter raster tiles instead.
   Those tile images send only the site origin for CARTO hostname authorization;
@@ -224,9 +224,11 @@ and state, reconcile frontend overrides, and recreate the service after env edit
 
 ## Runtime and dependency maintenance
 
-MapLibre is pinned to 6.4.1, which fixes the attribution sanitizer bypass
-GHSA-jrc7-96c5-q579. Its ESM renderer, shared module and native module worker
+MapLibre is pinned to 6.15.0, retaining the attribution sanitizer fix for
+GHSA-jrc7-96c5-q579. Its ESM renderer and self-contained native module worker
 are served locally; the loader initializes the Leaflet bridge before the app.
+The PWA precaches the exact versioned worker URL; the deprecated empty shared
+module is no longer needed. External map resources are not cached for offline use.
 Same-origin workers need neither `blob:` nor `unsafe-eval` CSP permissions.
 WebGL2 is required; unsupported browsers and failed optional renderer assets
 fall back to OpenStreetMap. Keep fixed trusted attribution in Leaflet rather
