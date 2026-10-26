@@ -22,8 +22,7 @@ test('dashboard and shared results serve pinned local module renderer assets', a
   for (const asset of [
     '/map-renderer.js',
     '/vendor/maplibre/maplibre-gl.mjs',
-    '/vendor/maplibre/maplibre-gl-shared.mjs',
-    '/vendor/maplibre/maplibre-gl-worker.mjs',
+    '/vendor/maplibre/maplibre-gl-worker.mjs?v=6.15.0',
     '/vendor/maplibre/maplibre-gl.css',
     '/vendor/maplibre-leaflet/leaflet-maplibre-gl.js',
   ]) {
@@ -43,8 +42,8 @@ test('dashboard and shared results serve pinned local module renderer assets', a
   assert.match(app, /import ['"]\.\/map-renderer.js['"]/);
 });
 
-test('renderer is pinned to the patched 6.4.1 release', async () => {
+test('renderer is pinned to the reviewed 6.15.0 release', async () => {
   const { readFile } = await import('node:fs/promises');
   const manifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url)));
-  assert.equal(manifest.dependencies['maplibre-gl'], '6.4.1');
+  assert.equal(manifest.dependencies['maplibre-gl'], '6.15.0');
 });

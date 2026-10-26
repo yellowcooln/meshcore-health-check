@@ -1,5 +1,21 @@
 # Changes
 
+## v1.4.1
+
+- updated MapLibre GL JS to 6.15.0 and adapted PWA precaching to its
+  self-contained, versioned module worker; removed the deprecated empty shared
+  module from the asset contract and advanced the independent shell cache revision
+- updated dotenv to 18.0.9, MQTT to 5.16.1 and Playwright to 1.64.1, with a
+  compatible transitive dependency refresh; body-parser 2.4.0 and ip-address
+  10.7.4 resolve the reported high/moderate security advisories
+- retained Node 24 LTS and its bundled npm 11; rebuild with the latest Node 24
+  security image, preserving existing configuration, data and Compose overrides
+- retained same-origin module-worker CSP, keyless OpenFreeMap dark maps, trusted
+  attribution and OpenStreetMap fallback; added exact-query offline-worker and
+  installed-PWA upgrade regression coverage
+- no new environment settings or configuration migration; preserve `.env` and
+  persistent data when upgrading, and reload installed apps after the new worker activates
+
 ## v1.4.0
 
 - added `CODE_PREFIX` to customize new test code prefixes, for example
