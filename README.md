@@ -325,3 +325,9 @@ No precise device coordinates are stored or sent to the server.
 Location requests a fresh high-accuracy estimate and displays browser-reported
 accuracy in the configured distance unit; GPS accuracy is not guaranteed. The public `/privacy` page
 explains local storage, retained results, verification cookies and map providers.
+
+## License
+
+Licensed under the [MIT License](LICENSE). You may use, modify, and redistribute
+the software, including public forks, provided the copyright and license notice
+are preserved.
