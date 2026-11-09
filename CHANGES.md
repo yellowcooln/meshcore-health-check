@@ -1,5 +1,16 @@
 # Changes
 
+## v1.4.2
+
+- added the MIT license and matching package metadata, clarifying permissions
+  for using, modifying and distributing the project; included the license in
+  the Docker image
+- retained the v1.4.1 dependency/security fixes and versioned MapLibre PWA
+  worker integration; no additional dependency versions or dashboard behavior
+  changes in this maintenance release
+- no new environment settings or data migration; preserve existing `.env`,
+  Compose overrides and persistent data when upgrading
+
 ## v1.4.1
 
 - updated MapLibre GL JS to 6.15.0 and adapted PWA precaching to its

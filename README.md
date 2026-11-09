@@ -171,7 +171,7 @@ Dark Matter raster tiles instead of the default OpenFreeMap dark map.
 
 For full setup steps, read [HOWTO.md](HOWTO.md). For every runtime variable,
 read [ENVIRONMENT.md](ENVIRONMENT.md). Existing deployments should follow the
-[v1.4.1 upgrade checklist](HOWTO.md#upgrading-to-v141) to preserve configuration
+[v1.4.2 upgrade checklist](HOWTO.md#upgrading-to-v142) to preserve configuration
 and state, reconcile frontend overrides, and recreate the service after env edits.
 
 ## Project Layout

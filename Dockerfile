@@ -12,7 +12,7 @@ COPY lib ./lib
 COPY public ./public
 COPY regions ./regions
 COPY region-scopes.example.yml ./
-COPY README.md HOWTO.md ENVIRONMENT.md AGENTS.md CHANGES.md ./
+COPY README.md HOWTO.md ENVIRONMENT.md AGENTS.md CHANGES.md LICENSE ./
 
 ENV NODE_ENV=production
 EXPOSE 3090
