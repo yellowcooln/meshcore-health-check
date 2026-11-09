@@ -62,7 +62,7 @@ configuration, channel matching, observer selection and scoring are unaffected.
 | `NEARBY_DEFAULT_RADIUS` | `100` | Initial/reload nearby radius in `DISTANCE_UNIT`. Allowed values: 5, 10, 15, 20, 25, 50, 75, 100, 150, 200. Other values fail startup with an explicit error. Snapshot updates preserve the visitor's choice. |
 
 No map key is required: dark mode defaults to OpenFreeMap, with MapLibre GL JS
-6.15.0 and its Leaflet bridge 0.1.4 served locally, including the ESM renderer
+6.16.0 and its Leaflet bridge 0.1.4 served locally, including the ESM renderer
 and self-contained same-origin module worker. WebGL2 is required for vector
 rendering. Browsers contact only `tiles.openfreemap.org` for the dark style, tiles,
 sprites and fonts. OpenStreetMap raster tiles are the fallback if WebGL or the

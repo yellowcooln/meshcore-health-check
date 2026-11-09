@@ -258,7 +258,7 @@ cp .env.example .env
 See [ENVIRONMENT.md](ENVIRONMENT.md) for the full variable reference.
 
 The dark coverage map uses OpenFreeMap by default; no API key is needed. MapLibre
-6.15.0 and its Leaflet bridge are served locally as ordered modules, including
+6.16.0 and its Leaflet bridge are served locally as ordered modules, including
 the self-contained same-origin module worker. The PWA precaches its exact
 versioned URL for offline worker loading. The browser fetches the style,
 tiles, sprites and fonts from `tiles.openfreemap.org`. Light mode uses

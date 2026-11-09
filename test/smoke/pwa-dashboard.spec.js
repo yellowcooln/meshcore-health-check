@@ -57,15 +57,15 @@ for (const [fixture, oldCache] of [
       upgraded = true;
       await page.evaluate(async () => (await navigator.serviceWorker.getRegistration()).update());
       await expect.poll(() => page.evaluate(() => caches.keys()), { timeout: 15000 }).toEqual([
-        'mesh-health-check-pwa-v1.4.1-maplibre-25',
+        'mesh-health-check-pwa-v1.4.2-maplibre-26',
       ]);
       const cached = await page.evaluate(async () => {
-        const cache = await caches.open('mesh-health-check-pwa-v1.4.1-maplibre-25');
+        const cache = await caches.open('mesh-health-check-pwa-v1.4.2-maplibre-26');
         return { paths: (await cache.keys()).map((request) => { const url = new URL(request.url); return url.pathname + url.search; }), shell: await (await cache.match('/app')).text() };
       });
       expect(cached.paths).toEqual(expect.arrayContaining([
         '/map-renderer.js', '/vendor/maplibre/maplibre-gl.mjs',
-        '/vendor/maplibre/maplibre-gl-worker.mjs?v=6.15.0',
+        '/vendor/maplibre/maplibre-gl-worker.mjs?v=6.16.0',
         '/vendor/maplibre/maplibre-gl.css', '/vendor/maplibre-leaflet/leaflet-maplibre-gl.js',
       ]));
       expect(cached.paths).not.toContain('/vendor/maplibre/maplibre-gl-shared.mjs');
@@ -73,7 +73,7 @@ for (const [fixture, oldCache] of [
       expect(cached.shell).toContain('id="meshcore-scopes"');
       const source = await fs.readFile(new URL('../../public/app.js', import.meta.url), 'utf8');
       expect(await page.evaluate(async () => (await caches.match('/app.js')).text())).toBe(source);
-      expect(await page.evaluate(async () => (await (await caches.open('mesh-health-check-pwa-v1.4.1-maplibre-25')).keys()).every((r) => new URL(r.url).origin === location.origin))).toBe(true);
+      expect(await page.evaluate(async () => (await (await caches.open('mesh-health-check-pwa-v1.4.2-maplibre-26')).keys()).every((r) => new URL(r.url).origin === location.origin))).toBe(true);
       // Fetch through the controlling worker; a page route mock cannot inject worker network failures.
       await expect.poll(() => page.evaluate(() => Boolean(navigator.serviceWorker.controller))).toBe(true);
       const readAsset = () => page.evaluate(async () => {
@@ -89,7 +89,7 @@ for (const [fixture, oldCache] of [
       // Never requested before going offline: install must have warmed this exact query key.
       const workerSource = await fs.readFile(new URL('../../node_modules/maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url), 'utf8');
       expect(await page.evaluate(async () => {
-        const response = await fetch('/vendor/maplibre/maplibre-gl-worker.mjs?v=6.15.0');
+        const response = await fetch('/vendor/maplibre/maplibre-gl-worker.mjs?v=6.16.0');
         return { status: response.status, body: await response.text() };
       })).toEqual({ status: 200, body: workerSource });
       for (const path of ['/missing.js', '/missing.mjs', '/missing.css']) {

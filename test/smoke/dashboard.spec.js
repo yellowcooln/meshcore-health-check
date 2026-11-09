@@ -975,7 +975,7 @@ test('keyless dark map renders with real MapLibre and releases canvases on theme
   expect(workers.length).toBeGreaterThan(0);
   expect(workers.every((url) => {
     const worker = new URL(url);
-    return worker.pathname === '/vendor/maplibre/maplibre-gl-worker.mjs' && worker.search === '?v=6.15.0';
+    return worker.pathname === '/vendor/maplibre/maplibre-gl-worker.mjs' && worker.search === '?v=6.16.0';
   })).toBe(true);
   await expect(page.locator('.leaflet-control-attribution')).toContainText('OpenFreeMap');
   await expect(page.locator('.leaflet-control-attribution')).toContainText('OpenMapTiles');
