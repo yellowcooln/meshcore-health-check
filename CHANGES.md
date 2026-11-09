@@ -1,5 +1,16 @@
 # Changes
 
+## v1.4.2
+
+- added the MIT license and matching package metadata, clarifying permissions
+  for using, modifying and distributing the project; included the license in
+  the Docker image
+- updated MapLibre GL JS to 6.16.0 and Playwright to 1.65.0; retained the
+  v1.4.1 dependency/security fixes and advanced the PWA cache revision so installed
+  apps precache the matching versioned MapLibre module worker
+- no new environment settings or data migration; preserve existing `.env`,
+  Compose overrides and persistent data when upgrading
+
 ## v1.4.1
 
 - updated MapLibre GL JS to 6.15.0 and adapted PWA precaching to its

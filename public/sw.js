@@ -1,5 +1,5 @@
 // Asset revision is independent of the release version; bump for shell changes.
-const CACHE_NAME = 'mesh-health-check-pwa-v1.4.1-maplibre-25';
+const CACHE_NAME = 'mesh-health-check-pwa-v1.4.2-maplibre-26';
 const CORE_ASSETS = [
   '/',
   '/app',
@@ -18,7 +18,7 @@ const CORE_ASSETS = [
   '/map-renderer.js',
   '/vendor/maplibre/maplibre-gl.mjs',
   // MapLibre's self-contained worker uses an exact versioned URL since 6.13.
-  '/vendor/maplibre/maplibre-gl-worker.mjs?v=6.15.0',
+  '/vendor/maplibre/maplibre-gl-worker.mjs?v=6.16.0',
   '/vendor/maplibre-leaflet/leaflet-maplibre-gl.js',
 ];
 
