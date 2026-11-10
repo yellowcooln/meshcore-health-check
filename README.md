@@ -1,264 +1,191 @@
-# Mesh Health Check
+<h1 align="center">Mesh Health Check</h1>
 
-Mesh Health Check is a self-hosted web app for measuring MeshCore message
-coverage across MQTT-connected observers. It generates a short code, watches the
-configured MeshCore group channel for that code, then scores how many selected
-observers reported the matching message hash.
+<p align="center">
+  Check how far your MeshCore messages reach.<br />
+  Self-hosted observer coverage tests, receipt timelines, and shareable results.
+</p>
 
-The idea for this app came from Nick D from Boston.
+<p align="center">
+  <a href="https://github.com/yellowcooln/meshcore-health-check/releases"><img src="https://img.shields.io/github/v/release/yellowcooln/meshcore-health-check?style=flat&amp;color=0f766e" alt="Latest release" /></a>
+  <a href="https://github.com/yellowcooln/meshcore-health-check/actions/workflows/ci.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/yellowcooln/meshcore-health-check/ci.yml?branch=main&amp;style=flat&amp;label=CI" alt="CI on main" /></a>
+  <a href="https://github.com/yellowcooln/meshcore-health-check/actions/workflows/docker-publish.yml?query=branch%3Amain"><img src="https://img.shields.io/github/actions/workflow/status/yellowcooln/meshcore-health-check/docker-publish.yml?branch=main&amp;style=flat&amp;label=docker%20build" alt="Docker build on main" /></a>
+  <a href="https://hub.docker.com/r/yellowcooln/meshcore-health-check"><img src="https://img.shields.io/docker/pulls/yellowcooln/meshcore-health-check?style=flat&amp;logo=docker&amp;logoColor=white" alt="Docker pulls" /></a>
+</p>
 
-Other community Health Checks:
+<p align="center">
+  <a href="#quick-start">Quick start</a> &middot;
+  <a href="./HOWTO.md">Documentation</a> &middot;
+  <a href="./ENVIRONMENT.md">Configuration</a> &middot;
+  <a href="./CHANGES.md">Changelog</a> &middot;
+  <a href="https://github.com/yellowcooln/meshcore-health-check/issues">Report an issue</a>
+</p>
 
-- https://healthcheck.ukmesh.com/ - UK Mesh Health Check
+![Mesh Health Check main page showing a test code, observer selection, and coverage map](./main-example.png)
 
-![Coverage example 1](image1.png)
-![Coverage example 2](image2.png)
-![Coverage example 3](image3.png)
+<p align="center"><em>Generate a code, send it on your MeshCore channel, and see which observers received it.</em></p>
 
-## What It Does
+## Features
 
-- creates short-lived health-check codes
-- matches MeshCore `GroupText` packets from MQTT
-- scores observer coverage against a default or custom observer set
-- shows receipts, paths, RSSI, SNR, timing, repeaters, and map coverage
-- estimates packet-path distance between known observers, with mile or
-  kilometer labels
-- learns observer names and locations from MQTT metadata
-- tracks recent observer activity and can auto-select the top observers
-- supports region filters from GeoJSON boundary files
-- keeps retained `/share/:sessionId` result links
-- optionally recognizes public MeshCore routing-scope candidates from a local
-  YAML file; records distinct observations per receipt without changing scoring
-- supports Cloudflare Turnstile and installable PWA behavior
+- Match MeshCore GroupText messages from MQTT and score coverage against selected observers.
+- Inspect receipt timing, paths, RSSI, SNR, repeaters, and estimated packet-path distances.
+- View observer coverage on a map with light/dark themes and no required map API key.
+- Choose activity-ranked defaults, fixed observers, geographic regions, or nearby observers.
+- Keep session history and share retained results through a link.
+- Optionally recognize public MeshCore routing scopes and offer longer test codes.
+- Support Cloudflare Turnstile and installation as a PWA.
 
-## Optional MeshCore routing scopes
+## How it works
 
-`MESHCORE_REGION_SCOPES_FILE` defaults to blank (name matching disabled).
-Start with [region-scopes.example.yml](region-scopes.example.yml), which contains
-an empty `regions` list and fictional comments only. Set a readable container
-path to a local YAML mapping `regions: ["#Fictional-Cloud"]` using your own
-public names. Names are case-sensitive, and missing `#` is added. Names must
-fit firmware storage: 30 UTF-8 bytes as written, including an explicit `#`;
-invalid punctuation such as `.` or `/` and oversized names fail startup rather
-than being truncated. Public region keys are prepared once; matching runs only
-for eligible session receipts, not unrelated channel traffic. No registry is
-downloaded; private `$` scopes/keys are unsupported. See the read-only Docker
-mount and recreation instructions in [HOWTO.md](HOWTO.md#optional-meshcore-routing-scopes).
+1. Copy the generated code from the dashboard.
+2. Send it yourself on the displayed MeshCore channel using your radio/client.
+3. Watch MQTT-connected observers report the matching message and compare the results.
 
-Details, receipt info and shared results list recorded **MeshCore scopes**,
-not geographic map regions. A single match displays just its name, without a
-Candidate prefix; multiple matches retain the **Ambiguous** label.
-A name is only a candidate among configured public
-names: short packet-dependent HMACs can collide. Unknown scoped packets need not
-be invalid; the name may be missing or private. Ambiguous means multiple
-configured names matched. Ordinary routes and transport wildcard zero are
-unscoped, disabled matching and unavailable payloads are explicit, and older
-receipts say not present. Forwarding can change a message's scope; all distinct
-observations survive persistence even when the YAML changes or is disabled.
-This cannot establish repeater membership, a globally fixed region, or sender
-intent. Channel matching, observer selection, RF matching and scores are unchanged.
+**The app does not transmit for you.** Its score measures receipts from the selected observer set, not guaranteed coverage everywhere. Before a matching message arrives, the check shows **Awaiting message** rather than a score.
 
-## Dashboard workflow
+The score retains the targets saved with a used code. Changing observers updates the map and the targets for the next code, without rewriting the old result. See the [user flow](./HOWTO.md#user-flow) and [result explanation](./HOWTO.md#result-meaning).
 
-Copy the active code and send it to the displayed MeshCore channel. Checks show
-**Awaiting message** without a score until a matching message is observed.
-Channel-send guidance stays visible below the code actions. **Details** contains
-secondary diagnostics, including the message hash and broker. A matched message
-without usable RSSI/SNR shows **Signal data unavailable**, not pending telemetry;
-its observer coverage can still be scored.
+## Quick start
 
-Open **Change observers** above the map for regional, manual or nearby selection.
-The score describes the current code's saved targets; if a used code has a different
-selection, the dashboard shows the next-code targets separately and offers
-**Generate new code**. The map follows your current selection, not historical targets.
+### Run the prebuilt Docker image
 
-## Optional Longer Codes
+Images are available on [Docker Hub](https://hub.docker.com/r/yellowcooln/meshcore-health-check). No local build is required:
 
-After any `.env` edit, recreate the service with the intended image already built
-or pulled:
+- `yellowcooln/meshcore-health-check:latest`: production image from `main`.
+- `yellowcooln/meshcore-health-check:dev`: development image from `dev`.
+
+The published image currently targets **Linux amd64**. Check platform compatibility before installing it on an ARM host.
+
+You need Docker with the Compose plugin, access to a MeshCore MQTT feed, and the test channel's name and secret or hash.
 
 ```bash
-docker compose up -d --no-build --pull never --force-recreate mesh-health-check
+mkdir meshcore-health-check
+cd meshcore-health-check
+mkdir -p data
+curl -fsSL https://raw.githubusercontent.com/yellowcooln/meshcore-health-check/main/.env.example -o .env
 ```
 
-`docker compose restart` does not reload Compose environment-file values. See the
-[source-build and published-image upgrade steps](HOWTO.md#upgrading-to-v140).
+Edit `.env` **before starting the app**:
 
-`ALLOW_LONGER_TEST_CODES=false` is the default for all installs: codes keep six
-hex characters after `MHC-` and no length slider is shown. Set it to `true` in
-`.env` and recreate the Compose service to offer **Code length** beside the code actions
-(6-16, step 1, initially 6). Only newly generated codes use the selected suffix
-length; the current code, observer targets, history, persistence and shared
-results stay intact. Reload resets the slider to 6. This is not message padding.
+- Set MQTT connectivity, credentials, and subscription topic for your network.
+- Set `TEST_CHANNEL_NAME` and `TEST_CHANNEL_SECRET` or `TEST_CHANNEL_HASH`.
+- For a public site, configure `SITE_URL`, trusted proxy settings, and valid Turnstile keys. The template enables Turnstile by default.
+- For a private local trial without Turnstile, explicitly set `TURNSTILE_ENABLED=false` and `TRUST_PROXY=false` when accessing it directly.
 
-## Nearby Observer Selection
+Create `docker-compose.yml` alongside `.env`:
 
-`BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as
-an explicit visitor action; it never requests permission on load. Set it to
-`false` in `.env` and recreate the Compose service to hide browser and approximate
-location controls and deny geolocation. **Use map center**, the search radius,
-region filters and manual observer selection remain available. Score guidance
-points to the available action. Regional guidance appears only when bootstrap
-provides usable regions, naming the selected region/group or all available
-regions. It also suggests choosing a region under **Change observers** when
-usable region options exist; a globally unconfigured instance makes no regional claim.
-Activity-ranked defaults are not necessarily the best fit for the visitor's exact
-location, and neither activity nor proximity guarantees radio coverage.
+```yaml
+services:
+  mesh-health-check:
+    image: yellowcooln/meshcore-health-check:latest
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      PORT: "3090"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "3090:3090"
+```
 
-Every reload starts with the website-configured default observer set. Nearby,
-manual and region choices are temporary; location is optional and only requested
-on click. Used session history remains available without changing the next-code defaults.
+Pull and start:
 
-Under **Change observers**, open the nearby controls and click **Use my location**
-when enabled to select up to 10 nearest active
-observers within the displayed radius (`NEARBY_DEFAULT_RADIUS=100` by default;
-options 5, 10, 15, 20, 25, 50, 75, 100, 150 and 200 in `DISTANCE_UNIT=mi|km`). No permission is requested on page load. **Use map center** lets you pan
-to an area without sharing device location; it is also the labeled fallback if
-geolocation fails or requires HTTPS. Distances use the same environment-configured unit as packet estimates, but are straight-line distances, not
-radio-path estimates: **proximity does not guarantee RF coverage**.
+```bash
+docker compose pull mesh-health-check
+docker compose up -d --no-build mesh-health-check
+```
 
-Selection uses recent packet activity, not merely saved observer metadata.
-Missing/stale activity and invalid coordinates are excluded. If nothing qualifies,
-your previous selection stays unchanged. Manual, region and Default Set controls
-remain available. An unused code may be regenerated as in the existing selection
-workflow; a used code keeps its target and the selection applies to the next code.
-The app never transmits for you.
+Open **http://localhost:3090**, or use your server's address. Keep the published port on a trusted network or behind your reverse proxy. In Docker, `MQTT_HOST=localhost` points at this container, not a broker on the host; use a reachable broker address or a service name on a shared network.
 
-Precise device coordinates are only used for browser-side distance calculations;
-they are not stored or sent to the backend. Only selected observer keys follow
-the normal session workflow. See [HOWTO.md](HOWTO.md#select-nearby-observers) for
-activity rules, privacy boundaries and troubleshooting.
+No map key is required: dark maps use OpenFreeMap, with OpenStreetMap for light maps and fallback. External tiles still need network access. See the [deployment guide](./HOWTO.md#setup) for optional mounts and hosting details.
 
-
-Location refinement lasts at most 12 seconds and keeps the most accurate fix. A
-fix within 1 km reported accuracy can finish early; coarser or unknown accuracy
-requires **Use approximate location** or **Use map center** without changing
-targets automatically. Desktop network estimates cannot be made into GPS by this
-app. Changing radius, region or manual targets cancels pending location work.
-The pending fix is memory-only and discarded on acceptance, cancellation or reload.
-Changing radius keeps the last distance results, selected observers and blue search
-origin visible until another search is applied; the status marks the new radius as
-not applied. Region/manual changes clear the nearby search context.
-
-## Quick Start
-
-Clone the repo and run the local Compose build:
+### Build from source instead
 
 ```bash
 git clone https://github.com/yellowcooln/meshcore-health-check.git
 cd meshcore-health-check
 cp .env.example .env
-docker compose up -d --build
 ```
 
-Default local URL: `http://localhost:3090`
-
-To run the published Docker image instead, use the production branch image
-`yellowcooln/meshcore-health-check:latest`, which is built from `main`, or
-`yellowcooln/meshcore-health-check:dev`, which is built from `dev`. See
-[HOWTO.md](HOWTO.md) for a full image-based Compose example.
-
-At minimum, configure MQTT and the test channel in `.env`:
-
-- `MQTT_HOST`, `MQTT_PORT`, `MQTT_TRANSPORT`, `MQTT_TLS`
-- `MQTT_USERNAME`, `MQTT_PASSWORD` when required
-- `MQTT_TOPIC`
-- `TEST_CHANNEL_NAME`
-- `TEST_CHANNEL_SECRET` or `TEST_CHANNEL_HASH`
-
-No map key is required. Optionally set `CARTO_BASEMAP_KEY` to retain CARTO
-Dark Matter raster tiles instead of the default OpenFreeMap dark map.
-
-For full setup steps, read [HOWTO.md](HOWTO.md). For every runtime variable,
-read [ENVIRONMENT.md](ENVIRONMENT.md). Existing deployments should follow the
-[v1.4.2 upgrade checklist](HOWTO.md#upgrading-to-v142) to preserve configuration
-and state, reconcile frontend overrides, and recreate the service after env edits.
-
-## Project Layout
-
-- [server.js](server.js): Express API, MQTT ingest, MeshCore decoding, session
-  matching, observer persistence, Turnstile handling, and WebSocket snapshots
-- [public/](public): dashboard, share page, landing page, styles, and service
-  worker
-- [data/observer.json](data/observer.json): observer names and coordinates
-- [data/observer-activity.json](data/observer-activity.json): rolling observer
-  packet history used for dynamic defaults
-- [data/session-results.json](data/session-results.json): retained share-link
-  session results
-- [.env.example](.env.example): runtime config template
-- [ENVIRONMENT.md](ENVIRONMENT.md): full environment variable reference
-- [HOWTO.md](HOWTO.md): deployment and operator guide
-- [CHANGES.md](CHANGES.md): release changelog
-
-## Runtime Notes
-
-- The app only decodes the configured test channel.
-- Docker Compose is the supported runtime path.
-- Keep `data/` mounted if observer profiles, observer activity, and share links
-  must survive rebuilds.
-- Leave `KNOWN_OBSERVERS` blank to let the app auto-select the top recent
-  observers. Fixed `KNOWN_OBSERVERS` defaults apply only when `INITIAL_REGION`
-  is blank; an initial region uses activity-ranked defaults instead.
-- Set `OBSERVER_RETENTION_SECONDS=0` to keep known observers visible regardless
-  of age.
-- Share links use retained server-side results and remain available until
-  `RESULT_RETENTION_SECONDS` expires.
-- `DASH_BROKER_HOST` changes only the broker label shown in the UI. It does not
-  change the actual MQTT connection.
-- `CORESCOPE_URL` changes the matched message-hash link to CoreScope
-  `#/packets/<hash>` routes.
-- Dark maps default to keyless OpenFreeMap via locally served MapLibre GL JS
-  6.16.0 and Leaflet bridge 0.1.4. Style, tiles, sprites and fonts come from
-  `tiles.openfreemap.org`; full provider/data attribution stays visible.
-  `CARTO_BASEMAP_KEY` optionally selects CARTO Dark Matter raster tiles instead.
-  Those tile images send only the site origin for CARTO hostname authorization;
-  other requests retain the global no-referrer policy.
-- Light maps use OpenStreetMap raster tiles, also used as the fallback when
-  WebGL or the vector provider fails. Leaflet markers, popups and nearby controls
-  remain available. The PWA caches local renderer assets, not external map tiles.
-- `DISTANCE_UNIT=mi` or `DISTANCE_UNIT=km` controls packet distance labels,
-  nearby distances, and search radii. Browser location accuracy uses the configured distance unit.
-
-- `CODE_PREFIX` sets the test code prefix, for example `CODE_PREFIX=CUSTOM`
-  produces codes like `CUSTOM-1A2B3C`.
-
-## Runtime and dependency maintenance
-
-MapLibre is pinned to 6.16.0, retaining the attribution sanitizer fix for
-GHSA-jrc7-96c5-q579. Its ESM renderer and self-contained native module worker
-are served locally; the loader initializes the Leaflet bridge before the app.
-The PWA precaches the exact versioned worker URL; the deprecated empty shared
-module is no longer needed. External map resources are not cached for offline use.
-Same-origin workers need neither `blob:` nor `unsafe-eval` CSP permissions.
-WebGL2 is required; unsupported browsers and failed optional renderer assets
-fall back to OpenStreetMap. Keep fixed trusted attribution in Leaflet rather
-than inserting provider attribution HTML or using MapLibre popup controls.
-
-Docker and CI use Node 24. For local checks, use Node 24 (`nvm use` reads
-`.nvmrc`); other Node majors are not supported.
-
-Dependabot checks npm, GitHub Actions, and Docker weekly and targets `dev`
-for version updates. Node image major updates are ignored so the runtime stays
-on Node 24; patch/minor updates remain enabled. Runtime-major migrations require
-manual review. GitHub reads this policy from `main`, and security-update PRs
-still target the default branch. Security alerts close after fixes reach `main`.
-
-## Validation
+Configure `.env` as above, then use the repository's source-build Compose file:
 
 ```bash
-npm run check
-npm test
 docker compose up -d --build
-curl -s http://localhost:3090/api/bootstrap
 ```
 
-Run `npm run test:smoke` when UI or routing behavior changes.
+Do not combine its `build` / `pull_policy: build` settings with the image-only example. Choose one deployment method.
 
-## Decoder
+## Configuration
 
-The app uses `@michaelhart/meshcore-decoder` for runtime MeshCore packet
-decoding. A small postinstall compatibility patch keeps the published CommonJS
-build loading cleanly across module formats.
+See [`.env.example`](./.env.example) for template values and [ENVIRONMENT.md](./ENVIRONMENT.md) for the full reference.
+
+| Setting | Purpose |
+| --- | --- |
+| `MQTT_HOST`, `MQTT_PORT`, `MQTT_TRANSPORT`, `MQTT_TLS` | MQTT connectivity; `MQTT_URL` can override the connection URL. |
+| `MQTT_USERNAME`, `MQTT_PASSWORD`, `MQTT_TOPIC` | Subscriber credentials and topic. |
+| `TEST_CHANNEL_NAME`, `TEST_CHANNEL_SECRET`, `TEST_CHANNEL_HASH` | Channel used for matching test messages. |
+| `APP_TITLE`, `SITE_URL`, `DASH_BROKER_HOST` | Site branding, public URL, and display-only broker label. |
+| `KNOWN_OBSERVERS`, `OBSERVER_TOP_COUNT` | Fixed defaults or activity-ranked observer count. |
+| `REGIONS_FILE`, `ALLOWED_REGION_GROUPS`, `ALLOWED_REGIONS`, `INITIAL_REGION` | Geographic controls, allowed area, and initial selection. |
+| `DISTANCE_UNIT`, `NEARBY_DEFAULT_RADIUS` | Miles/kilometers and nearby search radius. |
+| `BROWSER_LOCATION_ENABLED` | Optional browser-location controls; location is requested only on click. |
+| `CODE_PREFIX`, `ALLOW_LONGER_TEST_CODES` | Code prefix and optional 6-16-character suffix selection. |
+| `MESHCORE_REGION_SCOPES_FILE` | Optional operator-owned YAML for public routing-scope names. |
+| `TURNSTILE_ENABLED`, `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY` | Visitor verification. |
+| `RESULT_RETENTION_SECONDS` | How long saved result links remain available. |
+
+Geographic labels and MeshCore routing scopes are different features. Geographic filters affect observer selection; scope recognition does not change scoring or prove repeater membership. Configure your own public names using [region-scopes.example.yml](./region-scopes.example.yml), with the [read-only mount and matching limitations](./HOWTO.md#optional-meshcore-routing-scopes).
+
+Nearby selection is optional and temporary. Precise visitor coordinates stay in the browser; only selected observer keys enter the session workflow. Proximity does not guarantee RF coverage. See [nearby observer selection](./HOWTO.md#select-nearby-observers).
+
+## Updates and storage
+
+Keep `./data:/app/data` mounted to retain observer profiles, activity history, and saved share results. Back up data, `.env`, Compose overrides, and custom assets before upgrading. Do not overwrite working configuration with the template or leave old full-file frontend overrides masking newer image assets.
+
+For an image-based installation:
+
+```bash
+docker compose pull mesh-health-check
+docker compose up -d --no-build --pull never --force-recreate mesh-health-check
+```
+
+Recreation also reloads `.env`. **A plain `docker compose restart` does not.** Follow the [upgrade checklist](./HOWTO.md#upgrading-to-v142) for source-build steps and compatibility checks.
+
+Inspect startup and ingestion without creating a test session:
+
+```bash
+docker compose logs --tail=100 -f mesh-health-check
+curl -fsS http://localhost:3090/api/bootstrap
+```
+
+A successful HTTP response or MQTT connection alone does not prove RF delivery. Verify receipts with a code you deliberately transmit on the configured channel.
+
+## Development
+
+Use Node.js 24 (`nvm use` reads `.nvmrc`). From the repository root:
+
+```bash
+npm ci
+npm run check
+npm test
+npm run test:smoke
+```
+
+Use Docker Compose for runtime validation. The backend is in `server.js`, browser assets are in `public/`, and regression tests are in `test/`. See the [technical notes](./HOWTO.md#technical-notes) for renderer, decoder, and persistence details.
+
+## Credits and license
+
+The idea for this app came from Nick D from Boston.
+
+Community deployment: [UK Mesh Health Check](https://healthcheck.ukmesh.com/).
+
+Licensed under the [MIT License](./LICENSE). Preserve the copyright and license notice when using, modifying, or redistributing the software.
+
+## About these projects
+
+I build these projects with the help of AI when I see a need for software I want to use myself. The goal is to make something useful, run it on my own systems, and share it with anyone else who might find it helpful.
+
+This is something I do for fun, in my free time outside of work and family. If you find these tools useful and would like to support the time that goes into them, a little support on [Ko-fi](https://ko-fi.com/yellowcooln) is always appreciated. No pressure. Using the software, reporting bugs, and contributing ideas helps too.
 
 ## Star History
 
@@ -269,65 +196,3 @@ build loading cleanly across module formats.
    <img alt="Star History Chart" src="https://api.star-history.com/chart?repos=yellowcooln/meshcore-health-check&type=date&legend=top-left" />
  </picture>
 </a>
-
-## Geographic website scope
-
-These settings work worldwide with bundled or custom GeoJSON boundaries. They
-match region labels, not the website title or MQTT topic codes. For example,
-`REGION_NAME_PROPERTY=title` reads a custom feature's `properties.title`; use that
-exact value in `ALLOWED_REGIONS` and `INITIAL_REGION`. Group labels come from
-`REGION_GROUP_PROPERTY`.
-
-`ALLOWED_REGION_GROUPS` and `ALLOWED_REGIONS` are comma-separated, exact,
-case-sensitive labels from `REGIONS_FILE` (using `REGION_GROUP_PROPERTY` and
-`REGION_NAME_PROPERTY`). Both blank means unrestricted. When both are set,
-matching either list is sufficient (union, not intersection).
-
-For example, allow New England and initially select Massachusetts:
-
-```env
-REGIONS_FILE=regions/us-states.geojson
-ALLOWED_REGION_GROUPS=New England
-ALLOWED_REGIONS=
-INITIAL_REGION=Massachusetts
-```
-
-Scope filters the observer directory, region options, configured/dynamic defaults,
-map and nearby candidates, and new custom session targets. Unknown or unlocated
-observers are excluded while scope is enabled. Unknown configured labels or
-missing/unreadable boundaries fail startup clearly. Out-of-scope custom targets
-return HTTP 400 (`observer_outside_geographic_scope`); no default candidates
-returns HTTP 400 (`no_observers_in_geographic_scope`), never an unrestricted
-session. Existing retained results, target sets and scoring are not rewritten.
-MQTT ingestion/subscriptions are unchanged: this is not an IATA whitelist, and
-stored observer metadata is not deleted. Restart the container after editing.
-
-### Initial region and Default Set
-
-Set `INITIAL_REGION=Massachusetts` with `ALLOWED_REGION_GROUPS=New England`
-and blank `ALLOWED_REGIONS` to start/reload in Massachusetts while keeping all
-New England regions available, including nearby selection. `INITIAL_REGION`
-is one exact GeoJSON region label (blank preserves the
-existing default). Unknown labels, missing boundaries, or defaults outside the
-allowed scope fail startup. No matching defaults never falls back outside that area.
-
-With `INITIAL_REGION` set, initial defaults rank recent activity inside the
-configured region before applying `OBSERVER_TOP_COUNT` (10); if there is no ranked
-history, active observers in that area are used. This takes precedence over fixed
-`KNOWN_OBSERVERS`; fixed keys remain the legacy default only with no initial region.
-With fixed `KNOWN_OBSERVERS` defaults and no `INITIAL_REGION`, **Default Set**
-clears temporary region/group filters and restores that configured pubkey list.
-With activity-ranked defaults, it uses recent top observers within the currently
-selected region (active-window fallback when no history) and preserves that region.
-Reload restores the site's initial defaults. Region buttons may select all
-observers there; Default Set narrows them to the applicable default set.
-No precise device coordinates are stored or sent to the server.
-Location requests a fresh high-accuracy estimate and displays browser-reported
-accuracy in the configured distance unit; GPS accuracy is not guaranteed. The public `/privacy` page
-explains local storage, retained results, verification cookies and map providers.
-
-## License
-
-Licensed under the [MIT License](LICENSE). You may use, modify, and redistribute
-the software, including public forks, provided the copyright and license notice
-are preserved.
