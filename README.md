@@ -20,7 +20,7 @@
   <a href="https://github.com/yellowcooln/meshcore-health-check/issues">Report an issue</a>
 </p>
 
-![Mesh Health Check showing a test code and observer coverage result](./image1.png)
+![Mesh Health Check main page showing a test code, observer selection, and coverage map](./main-example.png)
 
 <p align="center"><em>Generate a code, send it on your MeshCore channel, and see which observers received it.</em></p>
 
@@ -137,18 +137,6 @@ See [`.env.example`](./.env.example) for template values and [ENVIRONMENT.md](./
 Geographic labels and MeshCore routing scopes are different features. Geographic filters affect observer selection; scope recognition does not change scoring or prove repeater membership. Configure your own public names using [region-scopes.example.yml](./region-scopes.example.yml), with the [read-only mount and matching limitations](./HOWTO.md#optional-meshcore-routing-scopes).
 
 Nearby selection is optional and temporary. Precise visitor coordinates stay in the browser; only selected observer keys enter the session workflow. Proximity does not guarantee RF coverage. See [nearby observer selection](./HOWTO.md#select-nearby-observers).
-
-## More examples
-
-### Receipt timeline
-
-![Observer reports showing relative receipt times](./image2.png)
-
-### Coverage map
-
-![Coverage map showing reached and unreached observers](./image3.png)
-
-The screenshots illustrate existing deployments. Available controls and styling may differ by release and configuration.
 
 ## Updates and storage
 
