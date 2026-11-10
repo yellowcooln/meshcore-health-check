@@ -2,7 +2,7 @@
   "name": "mesh-health-check",
   "version": "1.4.2",
   "private": true,
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "type": "module",
   "description": "MeshCore observer health checker for #health-check message propagation",
   "main": "server.js",
