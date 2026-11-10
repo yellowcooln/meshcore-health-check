@@ -179,7 +179,12 @@ The idea for this app came from Nick D from Boston.
 
 Community deployment: [UK Mesh Health Check](https://healthcheck.ukmesh.com/).
 
-Licensed under the [MIT License](./LICENSE). Preserve the copyright and license notice when using, modifying, or redistributing the software.
+Copyright (c) 2026 yellowcooln and contributors.
+
+Licensed under the [GNU General Public License version 3 only](./LICENSE) (`GPL-3.0-only`). You may use, modify, and redistribute this software under its terms. Distributed modified versions must be licensed under GPL version 3 and include the corresponding source as required by the license. This software comes without warranty.
+
+Third-party dependencies and assets retain their own licenses and notices.
+Earlier versions released under MIT remain available under those terms. Their copyright and permission notice is preserved in [LICENSES/MIT-legacy.txt](./LICENSES/MIT-legacy.txt); this does not dual-license new GPL-only changes.
 
 ## About these projects
 
