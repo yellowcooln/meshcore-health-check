@@ -1,5 +1,23 @@
 # How To Run Mesh Health Check
 
+[README](./README.md) · [Environment reference](./ENVIRONMENT.md) · [Changelog](./CHANGES.md)
+
+## Contents
+
+- [Requirements](#requirements)
+- [Setup](#setup)
+- [Upgrading](#upgrading-to-v142)
+- [User flow](#user-flow)
+- [Result meaning](#result-meaning)
+- [Observer data](#observer-data)
+- [Geographic website scope](#geographic-website-scope)
+- [Routing scopes](#optional-meshcore-routing-scopes)
+- [Longer codes](#optional-longer-test-codes)
+- [Nearby observers](#select-nearby-observers)
+- [Turnstile](#turnstile)
+- [Troubleshooting](#troubleshooting)
+- [Technical notes](#technical-notes)
+
 ## Purpose
 
 Mesh Health Check measures how well a MeshCore `GroupText` message reaches your
@@ -9,203 +27,6 @@ that code.
 
 It does not transmit anything. It only watches MQTT, matches messages, and
 summarizes observer coverage.
-
-## Optional MeshCore Routing Scopes
-
-This is separate from geographic `INITIAL_REGION`, `ALLOWED_REGIONS` and map
-filters. Blank `MESHCORE_REGION_SCOPES_FILE` disables public-name matching.
-No region registry is shipped or fetched. To opt in from a source checkout:
-
-```bash
-cp region-scopes.example.yml region-scopes.yml
-# Edit regions: [] to a list of your own quoted public name strings.
-```
-
-The example is also packaged as `/app/region-scopes.example.yml` in the image.
-For an image-only install, copy it from a stopped disposable container with
-`docker create --name mhc-scope-example YOUR_IMAGE`,
-`docker cp mhc-scope-example:/app/region-scopes.example.yml ./region-scopes.yml`,
-then `docker rm mhc-scope-example`. Do not overwrite an existing operator file.
-`region-scopes.yml` is ignored by Git and the build context.
-
-Set this in your existing `.env` (do not replace it with `.env.example`):
-
-```dotenv
-MESHCORE_REGION_SCOPES_FILE=/app/config/region-scopes.yml
-```
-
-Only after creating the file, add an optional Compose override; do not add a
-missing-file bind to the default Compose configuration:
-
-```yaml
-services:
-  mesh-health-check:
-    volumes:
-      - type: bind
-        source: ./region-scopes.yml
-        target: /app/config/region-scopes.yml
-        read_only: true
-        bind:
-          create_host_path: false
-```
-
-Build the new source image with `docker compose build mesh-health-check`, or
-pull an explicitly selected published image containing this feature first.
-Recreate using your existing Compose files/overrides (include any extra `-f`
-arguments you normally use):
-
-```bash
-docker compose up -d --no-build --pull never --force-recreate mesh-health-check
-```
-
-Repeat recreation after editing the YAML; it is read once at startup.
-`docker compose restart` does not reload changed env-file values. Preserve all
-existing `.env`, data, logo mounts and overrides. Remove stale frontend binds
-that mask packaged UI updates. Verify `/api/bootstrap` contains
-`meshcoreScopes: {"enabled":true,"count":N}` and inspect Details/receipt info on
-a decoded received test-channel GroupText result. An empty list is valid
-(`enabled: true, count: 0`) but cannot recognize named scopes.
-
-The only YAML key is `regions`, a list of at most 1024 public strings; maximum
-file size is 65536 bytes. Each name must fit the firmware's **30 UTF-8 bytes as
-written**, including an explicit `#`; an explicit hashtag leaves 29 bytes for
-the body. Bare names may use 30 bytes before the implicit `#` is added. Names
-are never silently truncated. Firmware-invalid punctuation such as `.` or `/`
-is rejected; valid accented UTF-8 names and hyphens remain supported. Quote names
-starting with `#` (otherwise YAML interprets them as comments). An implicit `#`
-is added, case is preserved, and duplicate normalized names are rejected.
-Malformed YAML, extra keys/documents, custom tags, aliases/anchors, nonstrings,
-empty names, whitespace/control characters, wildcards and `$` private names
-are rejected with `MESHCORE_REGION_SCOPES_FILE` startup errors. Missing,
-unreadable or nonregular configured files also fail startup, never silently
-disable recognition. Do not put private transport keys in this file.
-
-**Interpretation:** Details and share pages show distinct recorded MeshCore
-scope observations; each observer receipt preserves all distinct results even
-when the same message is forwarded with different transport scope. `known`
-means one configured public-name candidate, not proof of identity; the UI displays
-just the matched name, without a Candidate prefix. `ambiguous` retains an explicit
-label and means multiple configured candidates, `unknown` means a scoped packet with no
-configured match (possibly an absent public name or private scope), and
-`unscoped` means an ordinary route or first transport code zero/wildcard.
-The UI displays **No scopes observed** for unscoped packets or no receipts;
-the interpretation notes here are not repeated beneath the scope field.
-`disabled` means a scoped packet arrived while name matching was off;
-`unavailable` means the required decoded GroupText/raw payload was unavailable;
-`not-present` means legacy data without a recorded scope. No historical result
-is recalculated after a file change. Older records cannot be backfilled.
-
-Codes are 16-bit packet-dependent HMACs, **not stable region IDs**. Matching
-uses the original encrypted payload plus payload type and the first transport
-code via the installed decoder; the second code is not another named scope.
-It cannot infer repeater configured membership, geographic location or a
-globally fixed message region. Only successfully decoded received GroupText
-packets are evaluated; scoring, channel matching and observer selection do not
-depend on scope recognition. No RF transmission is performed.
-
-The wire semantics follow upstream firmware
-[`Packet.h`](https://github.com/meshcore-dev/MeshCore/blob/main/src/Packet.h),
-[`RegionMap.cpp`](https://github.com/meshcore-dev/MeshCore/blob/main/src/helpers/RegionMap.cpp)
-and [`TransportKeyStore.cpp`](https://github.com/meshcore-dev/MeshCore/blob/main/src/helpers/TransportKeyStore.cpp):
-route types 0/3 carry two codes, the first code selects a public-name candidate,
-zero is wildcard, and public-scope transport keys derive from the first 16 SHA-256 bytes of
-the case-preserved hashtag name. Matching uses the installed
-`@michaelhart/meshcore-decoder` implementation rather than a local HMAC copy.
-
-## Optional Longer Test Codes
-
-Leave `ALLOW_LONGER_TEST_CODES=false` (the default) for six hex characters after
-`MHC-`. To opt in, set `ALLOW_LONGER_TEST_CODES=true` in `.env` and recreate
-the Compose service. A **Code length** slider beside the code actions starts at
-6 and allows 6-16 characters in steps of 1, including odd lengths. Choose a length,
-then click
-**New Code**. Moving the slider never changes the current code, saved targets,
-receipts, score or shared results. Newly generated codes, including automatic
-unused-code replacements after observer changes, use the selected length.
-Reload resets the slider to 6 without rewriting retained sessions. Copy code
-copies the full code. This changes the code suffix itself, not message padding;
-the app still does not transmit messages. Existing six-character codes remain valid.
-
-## Select Nearby Observers
-
-`BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as
-an explicit visitor action; it never requests permission on load. Set it to
-`false` in `.env` and recreate the Compose service to hide browser and approximate
-location controls and deny geolocation. **Use map center**, the search radius,
-region filters and manual observer selection remain available. Score guidance
-points to the available action. Regional guidance appears only when bootstrap
-provides usable regions, naming the selected region/group or all available
-regions. When usable region options exist, the note also suggests choosing a region
-under **Change observers**; no regional suggestion appears without those options.
-
-1. Open **Change observers** above the coverage map, then choose a **Search radius**: 5, 10, 15, 20, 25, 50,
-   75, 100, 150 or 200 (`NEARBY_DEFAULT_RADIUS=100` by default), in the website `DISTANCE_UNIT` (`mi` by default, or `km`). Radius changes do not change the current selection until you
-   click a location-source button again. The previous distance list and blue search
-   origin remain visible, with the changed radius explicitly marked as not applied.
-2. When browser location is enabled, click **Use my location** and allow the browser prompt, or pan the map and
-   click **Use map center**. HTTPS (or localhost) is required for geolocation.
-   Denial, timeout and unavailable/insecure location use the current map center
-   with an explicit status message. If the map itself is unavailable, use manual
-   observer controls instead.
-3. Review the selected count and distance list. At most ten observers are chosen
-   from the whole available directory, independent of a prior region filter.
-   Distance ties are ordered by public key. No candidates means the previous
-   selection is preserved, not silently reset to defaults.
-4. Continue the normal health-check workflow: an unused waiting code can be
-   replaced after selection; a used code is unchanged, so use **New Code** for
-   the new target set (or **Generate new code** in the next-code selection notice).
-   **Current code targets** and its score retain the used code's saved observers;
-   the map previews the new selection. Send the displayed code yourself on MeshCore.
-   Unmatched checks and history show **Awaiting message**, not a failed score.
-   Open **Details** beside the code for secondary diagnostics.
-
-Only observers with `isActive: true` and a finite, positive `lastPacketAt` inside
-`observerStats.windowSeconds` qualify. The browser checks the timestamp again at
-selection time against its current clock. Unknown, future-dated and stale activity
-is excluded even if a cached snapshot calls it active. Retained metadata and
-`OBSERVER_RETENTION_SECONDS=0` do not make a node active. Numeric latitude/longitude
-must be valid, and the observer `0,0` no-position sentinel is excluded. Keep device
-and server clocks synchronized. A disconnected feed eventually produces no
-eligible observers; restore MQTT/connectivity and retry. Activity/distances are a
-selection-time snapshot, not continuous automatic retargeting.
-
-Device coordinates are never written to browser storage or sent to the app server.
-A temporary blue dot marks the chosen search origin; it is not included in map
-fit bounds and is cleared when the nearby selection is cleared or the page exits.
-Observer selections are page-local and only
-keys are submitted to session APIs. Reload always restores the website default
-set, discarding old cached selections and replacing a mismatched unused waiting
-code. Used session history remains intact; defaults apply to the next code. Your browser/OS location
-provider may use its own location services. Existing third-party map tiles reveal
-the viewed area, and selected observer keys can imply an approximate area; this
-feature does not promise anonymity. Distances are straight-line distances using the same `DISTANCE_UNIT` as receipts, and **proximity is not an RF
-coverage guarantee** (terrain, antennas, links and repeater paths still matter).
-Manual checkboxes, region filters and **Default Set** remain available and cancel
-any pending location selection.
-
-Proximity browser tests use mocked geolocation, activity and session fixtures;
-they do not prove GPS accuracy or live MQTT/RF delivery. Location requests use
-fresh high-accuracy estimates and show browser-reported accuracy in the configured distance unit, but
-a desktop browser may still return a coarse position. Check whether the status
-says browser location or map-center fallback. Serve over HTTPS (localhost is
-allowed) and ensure a reverse proxy does not override the app's
-`Permissions-Policy` geolocation directive with a deny rule when
-`BROWSER_LOCATION_ENABLED=true`. With the setting false, `geolocation=()` is
-intentional; use map-center selection instead. Permission remains
-explicit; high accuracy is a request, not a guarantee of GPS.
-
-The footer links to the public `/privacy` page, also accessible before Turnstile
-verification. It explains location processing, browser storage, retained shared
-results, cookies and third-party providers. Operators should review it against
-their own proxy logging and deployment services.
-
-
-Location refinement lasts at most 12 seconds and keeps the most accurate fix. A
-fix within 1 km reported accuracy can finish early; coarser or unknown accuracy
-requires **Use approximate location** or **Use map center** without changing
-targets automatically. Desktop network estimates cannot be made into GPS by this
-app. Changing radius, region or manual targets cancels pending location work.
-The pending fix is memory-only and discarded on acceptance, cancellation or reload.
 
 ## Requirements
 
@@ -219,6 +40,66 @@ The pending fix is memory-only and discarded on acceptance, cancellation or relo
 
 You can either clone the repo and build locally, or run the published Docker
 image directly.
+
+### Run The Published Image
+
+Use this path when you do not want to keep a git checkout on the host.
+
+1. Create a new folder:
+
+```bash
+mkdir meshcore-health-check
+cd meshcore-health-check
+mkdir -p data
+```
+
+2. Download the template and configure it before launch:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/yellowcooln/meshcore-health-check/main/.env.example -o .env
+```
+
+Set MQTT and test-channel values using [ENVIRONMENT.md](ENVIRONMENT.md).
+The template enables Turnstile: configure valid site/secret keys for a public
+site, or explicitly set `TURNSTILE_ENABLED=false` for a private local trial.
+Use `TRUST_PROXY=false` for direct access, or configure the actual trusted
+proxy topology. A container's `localhost` is not a broker running on the host.
+
+3. Create `docker-compose.yml`:
+
+```yaml
+services:
+  mesh-health-check:
+    image: yellowcooln/meshcore-health-check:latest
+    container_name: mesh-health-check
+    restart: unless-stopped
+    env_file:
+      - ./.env
+    environment:
+      PORT: "3090"
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "3090:3090"
+```
+
+4. Pull and start:
+
+```bash
+docker compose pull mesh-health-check
+docker compose up -d --no-build mesh-health-check
+```
+
+The publication workflow currently targets Linux amd64. Check compatibility on ARM hosts. Do not retain source-build `build` or `pull_policy: build` settings in this image-only Compose file.
+
+Image tags:
+
+- `main` is the production branch.
+- `yellowcooln/meshcore-health-check:latest` is the Docker image tag built
+  from `main`.
+- `yellowcooln/meshcore-health-check:dev` is the Docker image tag built from
+  `dev`.
+- Release tags and short-SHA tags are also published by the Docker workflow.
 
 ### Build From Source
 
@@ -305,54 +186,6 @@ docker compose up -d --build
 ```
 
 5. Open `http://localhost:3090` or put the service behind your reverse proxy.
-
-### Run The Published Image
-
-Use this path when you do not want to keep a git checkout on the host.
-
-1. Create a new folder:
-
-```bash
-mkdir meshcore-health-check
-cd meshcore-health-check
-mkdir -p data
-```
-
-2. Create `.env` from the variables documented in
-[ENVIRONMENT.md](ENVIRONMENT.md). At minimum, set MQTT and channel values.
-
-3. Create `docker-compose.yml`:
-
-```yaml
-services:
-  mesh-health-check:
-    image: yellowcooln/meshcore-health-check:latest
-    container_name: mesh-health-check
-    restart: unless-stopped
-    env_file:
-      - ./.env
-    environment:
-      PORT: "3090"
-    volumes:
-      - ./data:/app/data
-    ports:
-      - "3090:3090"
-```
-
-4. Start it:
-
-```bash
-docker compose up -d
-```
-
-Image tags:
-
-- `main` is the production branch.
-- `yellowcooln/meshcore-health-check:latest` is the Docker image tag built
-  from `main`.
-- `yellowcooln/meshcore-health-check:dev` is the Docker image tag built from
-  `dev`.
-- Release tags and short-SHA tags are also published by the Docker workflow.
 
 ## Upgrading to v1.4.2
 
@@ -568,7 +401,7 @@ return HTTP 400 (`observer_outside_geographic_scope`); no default candidates
 returns HTTP 400 (`no_observers_in_geographic_scope`), never an unrestricted
 session. Existing retained results, target sets and scoring are not rewritten.
 MQTT ingestion/subscriptions are unchanged: this is not an IATA whitelist, and
-stored observer metadata is not deleted. Restart the container after editing.
+stored observer metadata is not deleted. Recreate the Compose service after editing `.env`; a plain restart does not reload it.
 
 ### Initial region and Default Set
 
@@ -593,3 +426,264 @@ No precise device coordinates are stored or sent to the server.
 Location requests a fresh high-accuracy estimate and displays browser-reported
 accuracy in the configured distance unit; GPS accuracy is not guaranteed. The public `/privacy` page
 explains local storage, retained results, verification cookies and map providers.
+
+## Optional MeshCore Routing Scopes
+
+This is separate from geographic `INITIAL_REGION`, `ALLOWED_REGIONS` and map
+filters. Blank `MESHCORE_REGION_SCOPES_FILE` disables public-name matching.
+No region registry is shipped or fetched. To opt in from a source checkout:
+
+```bash
+cp region-scopes.example.yml region-scopes.yml
+# Edit regions: [] to a list of your own quoted public name strings.
+```
+
+The example is also packaged as `/app/region-scopes.example.yml` in the image.
+For an image-only install, copy it from a stopped disposable container with
+`docker create --name mhc-scope-example YOUR_IMAGE`,
+`docker cp mhc-scope-example:/app/region-scopes.example.yml ./region-scopes.yml`,
+then `docker rm mhc-scope-example`. Do not overwrite an existing operator file.
+`region-scopes.yml` is ignored by Git and the build context.
+
+Set this in your existing `.env` (do not replace it with `.env.example`):
+
+```dotenv
+MESHCORE_REGION_SCOPES_FILE=/app/config/region-scopes.yml
+```
+
+Only after creating the file, add an optional Compose override; do not add a
+missing-file bind to the default Compose configuration:
+
+```yaml
+services:
+  mesh-health-check:
+    volumes:
+      - type: bind
+        source: ./region-scopes.yml
+        target: /app/config/region-scopes.yml
+        read_only: true
+        bind:
+          create_host_path: false
+```
+
+Build the new source image with `docker compose build mesh-health-check`, or
+pull an explicitly selected published image containing this feature first.
+Recreate using your existing Compose files/overrides (include any extra `-f`
+arguments you normally use):
+
+```bash
+docker compose up -d --no-build --pull never --force-recreate mesh-health-check
+```
+
+Repeat recreation after editing the YAML; it is read once at startup.
+`docker compose restart` does not reload changed env-file values. Preserve all
+existing `.env`, data, logo mounts and overrides. Remove stale frontend binds
+that mask packaged UI updates. Verify `/api/bootstrap` contains
+`meshcoreScopes: {"enabled":true,"count":N}` and inspect Details/receipt info on
+a decoded received test-channel GroupText result. An empty list is valid
+(`enabled: true, count: 0`) but cannot recognize named scopes.
+
+The only YAML key is `regions`, a list of at most 1024 public strings; maximum
+file size is 65536 bytes. Each name must fit the firmware's **30 UTF-8 bytes as
+written**, including an explicit `#`; an explicit hashtag leaves 29 bytes for
+the body. Bare names may use 30 bytes before the implicit `#` is added. Names
+are never silently truncated. Firmware-invalid punctuation such as `.` or `/`
+is rejected; valid accented UTF-8 names and hyphens remain supported. Quote names
+starting with `#` (otherwise YAML interprets them as comments). An implicit `#`
+is added, case is preserved, and duplicate normalized names are rejected.
+Malformed YAML, extra keys/documents, custom tags, aliases/anchors, nonstrings,
+empty names, whitespace/control characters, wildcards and `$` private names
+are rejected with `MESHCORE_REGION_SCOPES_FILE` startup errors. Missing,
+unreadable or nonregular configured files also fail startup, never silently
+disable recognition. Do not put private transport keys in this file.
+
+**Interpretation:** Details and share pages show distinct recorded MeshCore
+scope observations; each observer receipt preserves all distinct results even
+when the same message is forwarded with different transport scope. `known`
+means one configured public-name candidate, not proof of identity; the UI displays
+just the matched name, without a Candidate prefix. `ambiguous` retains an explicit
+label and means multiple configured candidates, `unknown` means a scoped packet with no
+configured match (possibly an absent public name or private scope), and
+`unscoped` means an ordinary route or first transport code zero/wildcard.
+The UI displays **No scopes observed** for unscoped packets or no receipts;
+the interpretation notes here are not repeated beneath the scope field.
+`disabled` means a scoped packet arrived while name matching was off;
+`unavailable` means the required decoded GroupText/raw payload was unavailable;
+`not-present` means legacy data without a recorded scope. No historical result
+is recalculated after a file change. Older records cannot be backfilled.
+
+Codes are 16-bit packet-dependent HMACs, **not stable region IDs**. Matching
+uses the original encrypted payload plus payload type and the first transport
+code via the installed decoder; the second code is not another named scope.
+It cannot infer repeater configured membership, geographic location or a
+globally fixed message region. Only successfully decoded received GroupText
+packets are evaluated; scoring, channel matching and observer selection do not
+depend on scope recognition. No RF transmission is performed.
+
+The wire semantics follow upstream firmware
+[`Packet.h`](https://github.com/meshcore-dev/MeshCore/blob/main/src/Packet.h),
+[`RegionMap.cpp`](https://github.com/meshcore-dev/MeshCore/blob/main/src/helpers/RegionMap.cpp)
+and [`TransportKeyStore.cpp`](https://github.com/meshcore-dev/MeshCore/blob/main/src/helpers/TransportKeyStore.cpp):
+route types 0/3 carry two codes, the first code selects a public-name candidate,
+zero is wildcard, and public-scope transport keys derive from the first 16 SHA-256 bytes of
+the case-preserved hashtag name. Matching uses the installed
+`@michaelhart/meshcore-decoder` implementation rather than a local HMAC copy.
+
+## Optional Longer Test Codes
+
+Leave `ALLOW_LONGER_TEST_CODES=false` (the default) for six hex characters after
+`MHC-`. To opt in, set `ALLOW_LONGER_TEST_CODES=true` in `.env` and recreate
+the Compose service. A **Code length** slider beside the code actions starts at
+6 and allows 6-16 characters in steps of 1, including odd lengths. Choose a length,
+then click
+**New Code**. Moving the slider never changes the current code, saved targets,
+receipts, score or shared results. Newly generated codes, including automatic
+unused-code replacements after observer changes, use the selected length.
+Reload resets the slider to 6 without rewriting retained sessions. Copy code
+copies the full code. This changes the code suffix itself, not message padding;
+the app still does not transmit messages. Existing six-character codes remain valid.
+
+## Select Nearby Observers
+
+`BROWSER_LOCATION_ENABLED=true` (default) offers **Use my location** only as
+an explicit visitor action; it never requests permission on load. Set it to
+`false` in `.env` and recreate the Compose service to hide browser and approximate
+location controls and deny geolocation. **Use map center**, the search radius,
+region filters and manual observer selection remain available. Score guidance
+points to the available action. Regional guidance appears only when bootstrap
+provides usable regions, naming the selected region/group or all available
+regions. When usable region options exist, the note also suggests choosing a region
+under **Change observers**; no regional suggestion appears without those options.
+
+1. Open **Change observers** above the coverage map, then choose a **Search radius**: 5, 10, 15, 20, 25, 50,
+   75, 100, 150 or 200 (`NEARBY_DEFAULT_RADIUS=100` by default), in the website `DISTANCE_UNIT` (`mi` by default, or `km`). Radius changes do not change the current selection until you
+   click a location-source button again. The previous distance list and blue search
+   origin remain visible, with the changed radius explicitly marked as not applied.
+2. When browser location is enabled, click **Use my location** and allow the browser prompt, or pan the map and
+   click **Use map center**. HTTPS (or localhost) is required for geolocation.
+   Denial, timeout and unavailable/insecure location use the current map center
+   with an explicit status message. If the map itself is unavailable, use manual
+   observer controls instead.
+3. Review the selected count and distance list. At most ten observers are chosen
+   from the whole available directory, independent of a prior region filter.
+   Distance ties are ordered by public key. No candidates means the previous
+   selection is preserved, not silently reset to defaults.
+4. Continue the normal health-check workflow: an unused waiting code can be
+   replaced after selection; a used code is unchanged, so use **New Code** for
+   the new target set (or **Generate new code** in the next-code selection notice).
+   **Current code targets** and its score retain the used code's saved observers;
+   the map previews the new selection. Send the displayed code yourself on MeshCore.
+   Unmatched checks and history show **Awaiting message**, not a failed score.
+   Open **Details** beside the code for secondary diagnostics.
+
+Only observers with `isActive: true` and a finite, positive `lastPacketAt` inside
+`observerStats.windowSeconds` qualify. The browser checks the timestamp again at
+selection time against its current clock. Unknown, future-dated and stale activity
+is excluded even if a cached snapshot calls it active. Retained metadata and
+`OBSERVER_RETENTION_SECONDS=0` do not make a node active. Numeric latitude/longitude
+must be valid, and the observer `0,0` no-position sentinel is excluded. Keep device
+and server clocks synchronized. A disconnected feed eventually produces no
+eligible observers; restore MQTT/connectivity and retry. Activity/distances are a
+selection-time snapshot, not continuous automatic retargeting.
+
+Device coordinates are never written to browser storage or sent to the app server.
+A temporary blue dot marks the chosen search origin; it is not included in map
+fit bounds and is cleared when the nearby selection is cleared or the page exits.
+Observer selections are page-local and only
+keys are submitted to session APIs. Reload always restores the website default
+set, discarding old cached selections and replacing a mismatched unused waiting
+code. Used session history remains intact; defaults apply to the next code. Your browser/OS location
+provider may use its own location services. Existing third-party map tiles reveal
+the viewed area, and selected observer keys can imply an approximate area; this
+feature does not promise anonymity. Distances are straight-line distances using the same `DISTANCE_UNIT` as receipts, and **proximity is not an RF
+coverage guarantee** (terrain, antennas, links and repeater paths still matter).
+Manual checkboxes, region filters and **Default Set** remain available and cancel
+any pending location selection.
+
+Proximity browser tests use mocked geolocation, activity and session fixtures;
+they do not prove GPS accuracy or live MQTT/RF delivery. Location requests use
+fresh high-accuracy estimates and show browser-reported accuracy in the configured distance unit, but
+a desktop browser may still return a coarse position. Check whether the status
+says browser location or map-center fallback. Serve over HTTPS (localhost is
+allowed) and ensure a reverse proxy does not override the app's
+`Permissions-Policy` geolocation directive with a deny rule when
+`BROWSER_LOCATION_ENABLED=true`. With the setting false, `geolocation=()` is
+intentional; use map-center selection instead. Permission remains
+explicit; high accuracy is a request, not a guarantee of GPS.
+
+The footer links to the public `/privacy` page, also accessible before Turnstile
+verification. It explains location processing, browser storage, retained shared
+results, cookies and third-party providers. Operators should review it against
+their own proxy logging and deployment services.
+
+
+Location refinement lasts at most 12 seconds and keeps the most accurate fix. A
+fix within 1 km reported accuracy can finish early; coarser or unknown accuracy
+requires **Use approximate location** or **Use map center** without changing
+targets automatically. Desktop network estimates cannot be made into GPS by this
+app. Changing radius, region or manual targets cancels pending location work.
+The pending fix is memory-only and discarded on acceptance, cancellation or reload.
+
+
+## Technical notes
+
+The following runtime details accompany the deployment instructions.
+
+
+- The app only decodes the configured test channel.
+- Docker Compose is the supported runtime path.
+- Keep `data/` mounted if observer profiles, observer activity, and share links
+  must survive rebuilds.
+- Leave `KNOWN_OBSERVERS` blank to let the app auto-select the top recent
+  observers. Fixed `KNOWN_OBSERVERS` defaults apply only when `INITIAL_REGION`
+  is blank; an initial region uses activity-ranked defaults instead.
+- Set `OBSERVER_RETENTION_SECONDS=0` to keep known observers visible regardless
+  of age.
+- Share links use retained server-side results and remain available until
+  `RESULT_RETENTION_SECONDS` expires.
+- `DASH_BROKER_HOST` changes only the broker label shown in the UI. It does not
+  change the actual MQTT connection.
+- `CORESCOPE_URL` changes the matched message-hash link to CoreScope
+  `#/packets/<hash>` routes.
+- Dark maps default to keyless OpenFreeMap via locally served MapLibre GL JS
+  6.16.0 and Leaflet bridge 0.1.4. Style, tiles, sprites and fonts come from
+  `tiles.openfreemap.org`; full provider/data attribution stays visible.
+  `CARTO_BASEMAP_KEY` optionally selects CARTO Dark Matter raster tiles instead.
+  Those tile images send only the site origin for CARTO hostname authorization;
+  other requests retain the global no-referrer policy.
+- Light maps use OpenStreetMap raster tiles, also used as the fallback when
+  WebGL or the vector provider fails. Leaflet markers, popups and nearby controls
+  remain available. The PWA caches local renderer assets, not external map tiles.
+- `DISTANCE_UNIT=mi` or `DISTANCE_UNIT=km` controls packet distance labels,
+  nearby distances, and search radii. Browser location accuracy uses the configured distance unit.
+
+- `CODE_PREFIX` sets the test code prefix, for example `CODE_PREFIX=CUSTOM`
+  produces codes like `CUSTOM-1A2B3C`.
+
+### Runtime and dependency maintenance
+
+MapLibre is pinned to 6.16.0, retaining the attribution sanitizer fix for
+GHSA-jrc7-96c5-q579. Its ESM renderer and self-contained native module worker
+are served locally; the loader initializes the Leaflet bridge before the app.
+The PWA precaches the exact versioned worker URL; the deprecated empty shared
+module is no longer needed. External map resources are not cached for offline use.
+Same-origin workers need neither `blob:` nor `unsafe-eval` CSP permissions.
+WebGL2 is required; unsupported browsers and failed optional renderer assets
+fall back to OpenStreetMap. Keep fixed trusted attribution in Leaflet rather
+than inserting provider attribution HTML or using MapLibre popup controls.
+
+Docker and CI use Node 24. For local checks, use Node 24 (`nvm use` reads
+`.nvmrc`); other Node majors are not supported.
+
+Dependabot checks npm, GitHub Actions, and Docker weekly and targets `dev`
+for version updates. Node image major updates are ignored so the runtime stays
+on Node 24; patch/minor updates remain enabled. Runtime-major migrations require
+manual review. GitHub reads this policy from `main`, and security-update PRs
+still target the default branch. Security alerts close after fixes reach `main`.
+
+
+### Decoder
+
+The app uses `@michaelhart/meshcore-decoder` for runtime MeshCore packet
+decoding. A small postinstall compatibility patch keeps the published CommonJS
+build loading cleanly across module formats.
