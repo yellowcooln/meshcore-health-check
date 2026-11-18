@@ -15,7 +15,7 @@
     "dev": "node --watch server.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.65.0"
+    "@playwright/test": "^1.65.1"
   },
   "dependencies": {
     "@maplibre/maplibre-gl-leaflet": "0.1.4",
